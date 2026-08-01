@@ -69,21 +69,39 @@ func TestRenderChangeSummaryShowsOnlyImprovements(t *testing.T) {
 	}
 	current.Coverage = calculateCoverage(current.Counts)
 
-	want := `## Test262 changes
+	want := `## Test262 PR baseline diff
 
-✅ **No regression detected compared with main.**
+> [!TIP]
+> **Test262 check passed. No regression compared with main.**
 
-Only changed metrics are shown. 🟢 improvement · 🔴 regression
+🟢 improvement · 🔴 regression · unchanged values are shown as ` + "`0`" + `
 
-| Scope | Metric | Before | After | Change |
-|---|---|---:|---:|---:|
-| Overall | Test262 execution coverage | 60.00% | 65.00% | 🟢 ▲ +5.00 pp |
-| Overall | Test262 overall pass rate | 50.00% | 55.00% | 🟢 ▲ +5.00 pp |
-| Overall | Pass rate among executed tests | 83.33% | 84.62% | 🟢 ▲ +1.28 pp |
-| Overall | Pass | 10 | 11 | 🟢 ▲ +1 |
-| Overall | Unsupported | 8 | 7 | 🟢 ▼ -1 |
-| a | Pass | 5 | 6 | 🟢 ▲ +1 |
-| a | Unsupported | 1 | 0 | 🟢 ▼ -1 |
+### Test262 rate changes
+
+| Metric | main | PR | Diff |
+|---|---:|---:|---:|
+| Test262 execution coverage | 60.00% | 65.00% | 🟢 ▲ +5.00 pp |
+| Test262 overall pass rate | 50.00% | 55.00% | 🟢 ▲ +5.00 pp |
+| Pass rate among executed tests | 83.33% | 84.62% | 🟢 ▲ +1.28 pp |
+
+### Overall status diff
+
+| Status | main | PR | Diff |
+|---|---:|---:|---:|
+| pass | 10 | 11 | 🟢 ▲ +1 |
+| fail | 2 | 2 | ` + "`0`" + ` |
+| skip | 0 | 0 | ` + "`0`" + ` |
+| timeout | 0 | 0 | ` + "`0`" + ` |
+| unsupported | 8 | 7 | 🟢 ▼ -1 |
+| total | 20 | 20 | ` + "`0`" + ` |
+
+### Changed features
+
+Only features with changed results are included.
+
+| Feature | pass | fail | skip | timeout | unsupported | total |
+|---|---:|---:|---:|---:|---:|---:|
+| a | 🟢 ▲ +1 | ` + "`0`" + ` | ` + "`0`" + ` | ` + "`0`" + ` | 🟢 ▼ -1 | ` + "`0`" + ` |
 `
 	if got := renderChangeSummary(previous, current); got != want {
 		t.Fatalf("renderChangeSummary() mismatch\n--- got ---\n%s\n--- want ---\n%s", got, want)
@@ -102,20 +120,38 @@ func TestRenderChangeSummaryShowsRegression(t *testing.T) {
 	}
 	current.Coverage = calculateCoverage(current.Counts)
 
-	want := `## Test262 changes
+	want := `## Test262 PR baseline diff
 
-❌ **Regression detected compared with main.**
+> [!CAUTION]
+> **Regression detected compared with main.**
 
-Only changed metrics are shown. 🟢 improvement · 🔴 regression
+🟢 improvement · 🔴 regression · unchanged values are shown as ` + "`0`" + `
 
-| Scope | Metric | Before | After | Change |
-|---|---|---:|---:|---:|
-| Overall | Test262 overall pass rate | 50.00% | 45.00% | 🔴 ▼ -5.00 pp |
-| Overall | Pass rate among executed tests | 83.33% | 75.00% | 🔴 ▼ -8.33 pp |
-| Overall | Pass | 10 | 9 | 🔴 ▼ -1 |
-| Overall | Fail | 2 | 3 | 🔴 ▲ +1 |
-| b | Pass | 3 | 2 | 🔴 ▼ -1 |
-| b | Fail | 0 | 1 | 🔴 ▲ +1 |
+### Test262 rate changes
+
+| Metric | main | PR | Diff |
+|---|---:|---:|---:|
+| Test262 overall pass rate | 50.00% | 45.00% | 🔴 ▼ -5.00 pp |
+| Pass rate among executed tests | 83.33% | 75.00% | 🔴 ▼ -8.33 pp |
+
+### Overall status diff
+
+| Status | main | PR | Diff |
+|---|---:|---:|---:|
+| pass | 10 | 9 | 🔴 ▼ -1 |
+| fail | 2 | 3 | 🔴 ▲ +1 |
+| skip | 0 | 0 | ` + "`0`" + ` |
+| timeout | 0 | 0 | ` + "`0`" + ` |
+| unsupported | 8 | 8 | ` + "`0`" + ` |
+| total | 20 | 20 | ` + "`0`" + ` |
+
+### Changed features
+
+Only features with changed results are included.
+
+| Feature | pass | fail | skip | timeout | unsupported | total |
+|---|---:|---:|---:|---:|---:|---:|
+| b | 🔴 ▼ -1 | 🔴 ▲ +1 | ` + "`0`" + ` | ` + "`0`" + ` | ` + "`0`" + ` | ` + "`0`" + ` |
 `
 	if got := renderChangeSummary(previous, current); got != want {
 		t.Fatalf("renderChangeSummary() mismatch\n--- got ---\n%s\n--- want ---\n%s", got, want)
@@ -135,15 +171,27 @@ func TestRenderChangeSummaryTreatsPinnedCommitChangeAsRegression(t *testing.T) {
 		ByFeature: previous.ByFeature,
 		Coverage:  previous.Coverage,
 	}
-	want := `## Test262 changes
+	want := `## Test262 PR baseline diff
 
-❌ **Regression detected compared with main.**
+> [!CAUTION]
+> **Regression detected compared with main.**
 
-Only changed metrics are shown. 🟢 improvement · 🔴 regression
+🟢 improvement · 🔴 regression · unchanged values are shown as ` + "`0`" + `
 
-| Scope | Metric | Before | After | Change |
-|---|---|---:|---:|---:|
-| Metadata | Pinned Test262 commit | ` + "`main-commit`" + ` | ` + "`pr-commit`" + ` | 🔴 changed |
+### Metadata change
+
+Pinned Test262 commit: ` + "`main-commit`" + ` → ` + "`pr-commit`" + ` 🔴
+
+### Overall status diff
+
+| Status | main | PR | Diff |
+|---|---:|---:|---:|
+| pass | 1 | 1 | ` + "`0`" + ` |
+| fail | 0 | 0 | ` + "`0`" + ` |
+| skip | 0 | 0 | ` + "`0`" + ` |
+| timeout | 0 | 0 | ` + "`0`" + ` |
+| unsupported | 0 | 0 | ` + "`0`" + ` |
+| total | 1 | 1 | ` + "`0`" + ` |
 `
 	if got := renderChangeSummary(previous, current); got != want {
 		t.Fatalf("renderChangeSummary() mismatch\n--- got ---\n%s\n--- want ---\n%s", got, want)
@@ -157,7 +205,24 @@ func TestRenderChangeSummaryWhenNothingChanged(t *testing.T) {
 	}
 	previous.Coverage = calculateCoverage(previous.Counts)
 	current := report{Counts: previous.Counts, ByFeature: previous.ByFeature, Coverage: previous.Coverage}
-	want := "## Test262 changes\n\n✅ No Test262 result changes compared with main.\n"
+	want := `## Test262 PR baseline diff
+
+> [!TIP]
+> **Test262 check passed. No result changes compared with main.**
+
+🟢 improvement · 🔴 regression · unchanged values are shown as ` + "`0`" + `
+
+### Overall status diff
+
+| Status | main | PR | Diff |
+|---|---:|---:|---:|
+| pass | 1 | 1 | ` + "`0`" + ` |
+| fail | 0 | 0 | ` + "`0`" + ` |
+| skip | 0 | 0 | ` + "`0`" + ` |
+| timeout | 0 | 0 | ` + "`0`" + ` |
+| unsupported | 0 | 0 | ` + "`0`" + ` |
+| total | 1 | 1 | ` + "`0`" + ` |
+`
 	if got := renderChangeSummary(previous, current); got != want {
 		t.Fatalf("renderChangeSummary() = %q, want %q", got, want)
 	}

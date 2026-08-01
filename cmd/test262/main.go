@@ -602,43 +602,14 @@ var summaryCountMetrics = []countMetric{
 	{name: "Pass", value: func(c counts) int { return c.Pass }},
 	{name: "Fail", lowerIsBetter: true, value: func(c counts) int { return c.Fail }},
 	{name: "Skip", lowerIsBetter: true, value: func(c counts) int { return c.Skip }},
-	{name: "Unsupported", lowerIsBetter: true, value: func(c counts) int { return c.Unsupported }},
 	{name: "Timeout", lowerIsBetter: true, value: func(c counts) int { return c.Timeout }},
+	{name: "Unsupported", lowerIsBetter: true, value: func(c counts) int { return c.Unsupported }},
 	{name: "Total", regressionOnChange: true, value: func(c counts) int { return c.Total }},
 }
 
 // renderChangeSummary keeps the GitHub Step Summary focused on differences
-// from the committed baseline. Green marks improvements and red regressions.
+// between the generated PR baseline and the baseline loaded from main.
 func renderChangeSummary(previous baselineSnapshot, current report) string {
-	rows := &strings.Builder{}
-	changed := false
-	if previous.Commit != current.Commit {
-		changed = true
-		fmt.Fprintf(rows, "| Metadata | Pinned Test262 commit | `%s` | `%s` | 🔴 changed |\n", previous.Commit, current.Commit)
-	}
-	addPercent := func(metric string, before, after float64) {
-		if before == after {
-			return
-		}
-		changed = true
-		fmt.Fprintf(rows, "| Overall | %s | %.2f%% | %.2f%% | %s |\n", metric, before, after, formatFloatChange(after-before, false))
-	}
-	addCounts := func(scope string, before, after counts) {
-		for _, metric := range summaryCountMetrics {
-			oldValue, newValue := metric.value(before), metric.value(after)
-			if oldValue == newValue {
-				continue
-			}
-			changed = true
-			fmt.Fprintf(rows, "| %s | %s | %d | %d | %s |\n", scope, metric.name, oldValue, newValue, formatIntChange(newValue-oldValue, metric.lowerIsBetter, metric.regressionOnChange))
-		}
-	}
-
-	addPercent("Test262 execution coverage", previous.Coverage.CoveragePercent, current.Coverage.CoveragePercent)
-	addPercent("Test262 overall pass rate", previous.Coverage.OverallPassPercent, current.Coverage.OverallPassPercent)
-	addPercent("Pass rate among executed tests", previous.Coverage.CoveredPassPercent, current.Coverage.CoveredPassPercent)
-	addCounts("Overall", previous.Counts, current.Counts)
-
 	features := make(map[string]struct{}, len(previous.ByFeature)+len(current.ByFeature))
 	for feature := range previous.ByFeature {
 		features[feature] = struct{}{}
@@ -646,37 +617,96 @@ func renderChangeSummary(previous baselineSnapshot, current report) string {
 	for feature := range current.ByFeature {
 		features[feature] = struct{}{}
 	}
-	keys := make([]string, 0, len(features))
+	changedFeatures := make([]string, 0, len(features))
 	for feature := range features {
-		keys = append(keys, feature)
+		if previous.ByFeature[feature] != current.ByFeature[feature] {
+			changedFeatures = append(changedFeatures, feature)
+		}
 	}
-	sort.Strings(keys)
-	for _, feature := range keys {
-		addCounts(strings.ReplaceAll(feature, "|", "\\|"), previous.ByFeature[feature], current.ByFeature[feature])
-	}
+	sort.Strings(changedFeatures)
 
 	regressions := compareBaselineSnapshot(previous, current)
-	if !changed && len(regressions) == 0 {
-		return "## Test262 changes\n\n✅ No Test262 result changes compared with main.\n"
-	}
+	changed := previous.Commit != current.Commit || previous.Counts != current.Counts || len(changedFeatures) > 0
 	b := &strings.Builder{}
-	fmt.Fprintln(b, "## Test262 changes")
+	fmt.Fprintln(b, "## Test262 PR baseline diff")
 	fmt.Fprintln(b)
 	if len(regressions) > 0 {
-		fmt.Fprintln(b, "❌ **Regression detected compared with main.**")
+		fmt.Fprintln(b, "> [!CAUTION]")
+		fmt.Fprintln(b, "> **Regression detected compared with main.**")
+	} else if !changed {
+		fmt.Fprintln(b, "> [!TIP]")
+		fmt.Fprintln(b, "> **Test262 check passed. No result changes compared with main.**")
 	} else {
-		fmt.Fprintln(b, "✅ **No regression detected compared with main.**")
+		fmt.Fprintln(b, "> [!TIP]")
+		fmt.Fprintln(b, "> **Test262 check passed. No regression compared with main.**")
 	}
 	fmt.Fprintln(b)
-	fmt.Fprintln(b, "Only changed metrics are shown. 🟢 improvement · 🔴 regression")
+	fmt.Fprintln(b, "🟢 improvement · 🔴 regression · unchanged values are shown as `0`")
 	fmt.Fprintln(b)
-	fmt.Fprintln(b, "| Scope | Metric | Before | After | Change |")
-	fmt.Fprintln(b, "|---|---|---:|---:|---:|")
-	fmt.Fprint(b, rows.String())
+	if previous.Commit != current.Commit {
+		fmt.Fprintln(b, "### Metadata change")
+		fmt.Fprintln(b)
+		fmt.Fprintf(b, "Pinned Test262 commit: `%s` → `%s` 🔴\n\n", previous.Commit, current.Commit)
+	}
+
+	type rateMetric struct {
+		name          string
+		before, after float64
+	}
+	rates := []rateMetric{
+		{name: "Test262 execution coverage", before: previous.Coverage.CoveragePercent, after: current.Coverage.CoveragePercent},
+		{name: "Test262 overall pass rate", before: previous.Coverage.OverallPassPercent, after: current.Coverage.OverallPassPercent},
+		{name: "Pass rate among executed tests", before: previous.Coverage.CoveredPassPercent, after: current.Coverage.CoveredPassPercent},
+	}
+	rateRows := &strings.Builder{}
+	for _, metric := range rates {
+		if metric.before != metric.after {
+			fmt.Fprintf(rateRows, "| %s | %.2f%% | %.2f%% | %s |\n", metric.name, metric.before, metric.after, formatFloatChange(metric.after-metric.before, false))
+		}
+	}
+	if rateRows.Len() > 0 {
+		fmt.Fprintln(b, "### Test262 rate changes")
+		fmt.Fprintln(b)
+		fmt.Fprintln(b, "| Metric | main | PR | Diff |")
+		fmt.Fprintln(b, "|---|---:|---:|---:|")
+		fmt.Fprint(b, rateRows.String())
+		fmt.Fprintln(b)
+	}
+
+	fmt.Fprintln(b, "### Overall status diff")
+	fmt.Fprintln(b)
+	fmt.Fprintln(b, "| Status | main | PR | Diff |")
+	fmt.Fprintln(b, "|---|---:|---:|---:|")
+	for _, metric := range summaryCountMetrics {
+		before, after := metric.value(previous.Counts), metric.value(current.Counts)
+		fmt.Fprintf(b, "| %s | %d | %d | %s |\n", strings.ToLower(metric.name), before, after, formatIntChange(after-before, metric.lowerIsBetter, metric.regressionOnChange))
+	}
+
+	if len(changedFeatures) > 0 {
+		fmt.Fprintln(b)
+		fmt.Fprintln(b, "### Changed features")
+		fmt.Fprintln(b)
+		fmt.Fprintln(b, "Only features with changed results are included.")
+		fmt.Fprintln(b)
+		fmt.Fprintln(b, "| Feature | pass | fail | skip | timeout | unsupported | total |")
+		fmt.Fprintln(b, "|---|---:|---:|---:|---:|---:|---:|")
+		for _, feature := range changedFeatures {
+			before, after := previous.ByFeature[feature], current.ByFeature[feature]
+			fmt.Fprintf(b, "| %s", strings.ReplaceAll(feature, "|", "\\|"))
+			for _, metric := range summaryCountMetrics {
+				delta := metric.value(after) - metric.value(before)
+				fmt.Fprintf(b, " | %s", formatIntChange(delta, metric.lowerIsBetter, metric.regressionOnChange))
+			}
+			fmt.Fprintln(b, " |")
+		}
+	}
 	return b.String()
 }
 
 func formatIntChange(delta int, lowerIsBetter, regressionOnChange bool) string {
+	if delta == 0 {
+		return "`0`"
+	}
 	marker := changeMarker(float64(delta), lowerIsBetter, regressionOnChange)
 	return fmt.Sprintf("%s %+.0f", marker, float64(delta))
 }

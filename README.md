@@ -84,7 +84,9 @@ Additional Test262 runner flags can be appended to the command; the GitHub
 workflow uses this to preserve its detailed JSON and JUnit artifacts outside
 the temporary directory. In CI, `--baseline-ref main` loads the comparison
 baseline from the remote `main` branch before running, while still writing the
-new snapshot into the checked-out branch for the consistency diff.
+new snapshot into the checked-out branch for the consistency diff. The workflow
+fails when the regenerated `COVERAGE.md` or `full-baseline.json` differs from the
+PR's committed files, so manually edited or stale reports are not accepted.
 
 ## Roadmap
 
