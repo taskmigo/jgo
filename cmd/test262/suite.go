@@ -11,28 +11,110 @@ import (
 	"time"
 )
 
-func executeSuite(config runnerConfig) (report, suite, *baselineSnapshot, string, error) {
+func executeSuite(config runnerConfig) (report, suite, []timedResult, *baselineSnapshot, string, error) {
 	selection, err := readManifest(config.selection)
 	if err != nil {
-		return report{}, suite{}, nil, "", err
+		return report{}, suite{}, nil, nil, "", err
+	}
+	capabilities, err := readCapabilityManifest(config.selection, selection)
+	if err != nil {
+		return report{}, suite{}, nil, nil, "", err
 	}
 	effectiveDate, err := coverageReportDate(selection.ReportDate, config.reportDate)
 	if err != nil {
-		return report{}, suite{}, nil, "", err
+		return report{}, suite{}, nil, nil, "", err
 	}
 	testNames, mode, err := selectedTests(config, selection)
 	if err != nil {
-		return report{}, suite{}, nil, "", err
+		return report{}, suite{}, nil, nil, "", err
 	}
 
-	results := report{Commit: selection.Commit, ECMAVersion: selection.ECMAVersion, Mode: mode, ByFeature: map[string]counts{}}
+	testCases, bodies, err := expandTestCases(config.root, testNames)
+	if err != nil {
+		return report{}, suite{}, nil, nil, "", err
+	}
+	if config.feature != "" {
+		testCases, testNames = filterCasesByFeature(testCases, config.feature)
+		if len(testCases) == 0 {
+			return report{}, suite{}, nil, nil, "", fmt.Errorf("no tests tagged with feature %q", config.feature)
+		}
+	}
+	results := report{
+		SchemaVersion: baselineSchemaVersion, ECMA262Commit: selection.ECMA262Commit,
+		Test262Commit: selection.Commit, ECMAVersion: selection.ECMAVersion,
+		CapabilityVersion: selection.CapabilityVersion, Mode: mode,
+		SourceFileDenominator: len(testNames), ExpandedCaseDenominator: len(testCases),
+		ByFeature: map[string]counts{},
+	}
 	junit := suite{}
-	for _, name := range testNames {
-		addResult(&results, &junit, runOne(config.root, name, config.maxSteps, config.timeout))
+	timings := make([]timedResult, 0, len(testCases))
+	for _, testCase := range testCases {
+		started := time.Now()
+		addResult(&results, &junit, runCase(config.root, testCase, bodies[testCase.SourceName], capabilities, config.maxSteps, config.timeout))
+		timings = append(timings, timedResult{CaseID: testCase.ID, DurationMS: time.Since(started).Milliseconds()})
 	}
 	finalizeReport(&results, &junit)
 	previous := applyBaseline(config, &results)
-	return results, junit, previous, effectiveDate, nil
+	return results, junit, timings, previous, effectiveDate, nil
+}
+
+func filterCasesByFeature(cases []executionCase, feature string) ([]executionCase, []string) {
+	filtered := make([]executionCase, 0)
+	sources := make([]string, 0)
+	lastSource := ""
+	for _, testCase := range cases {
+		if !contains(testCase.Metadata.features, feature) {
+			continue
+		}
+		filtered = append(filtered, testCase)
+		if testCase.SourceName != lastSource {
+			sources = append(sources, testCase.SourceName)
+			lastSource = testCase.SourceName
+		}
+	}
+	return filtered, sources
+}
+
+func expandTestCases(root string, names []string) ([]executionCase, map[string]string, error) {
+	testCases := make([]executionCase, 0, len(names)*2)
+	bodies := make(map[string]string, len(names))
+	for _, name := range names {
+		metadata, body, err := loadTestFile(root, name)
+		if err != nil {
+			testCases = append(testCases, executionCase{
+				SourceName: name,
+				ID:         name + "#raw",
+				Variant:    "raw",
+				LoadError:  err.Error(),
+			})
+			continue
+		}
+		bodies[name] = body
+		for _, variant := range executionVariants(metadata) {
+			testCases = append(testCases, executionCase{
+				SourceName: name,
+				ID:         name + "#" + variant,
+				Variant:    variant,
+				Metadata:   metadata,
+			})
+		}
+	}
+	return testCases, bodies, nil
+}
+
+func executionVariants(metadata metadata) []string {
+	switch {
+	case contains(metadata.flags, "raw"):
+		return []string{"raw"}
+	case contains(metadata.flags, "module"):
+		return []string{"module"}
+	case contains(metadata.flags, "onlyStrict"):
+		return []string{"strict"}
+	case contains(metadata.flags, "noStrict"):
+		return []string{"sloppy"}
+	default:
+		return []string{"sloppy", "strict"}
+	}
 }
 
 func readManifest(path string) (manifest, error) {
@@ -97,13 +179,28 @@ func finalizeReport(report *report, junit *suite) {
 }
 
 func validateManifest(manifest manifest) error {
-	if manifest.Commit == "" || manifest.ECMAVersion == "" || manifest.ReportDate == "" {
-		return errors.New("invalid selection manifest: missing commit, ecmaVersion, or reportDate")
+	if manifest.Commit == "" || manifest.ECMA262Commit == "" || manifest.ECMAVersion == "" || manifest.ReportDate == "" || manifest.CapabilityVersion == "" {
+		return errors.New("invalid selection manifest: missing commit, ecma262Commit, ecmaVersion, reportDate, or capabilityVersion")
+	}
+	if !isCommitSHA(manifest.Commit) || !isCommitSHA(manifest.ECMA262Commit) {
+		return errors.New("invalid selection manifest: commits must be 40-character hexadecimal SHAs")
 	}
 	if _, err := time.Parse("2006-01-02", manifest.ReportDate); err != nil {
 		return fmt.Errorf("invalid selection manifest reportDate: %w", err)
 	}
 	return nil
+}
+
+func isCommitSHA(value string) bool {
+	if len(value) != 40 {
+		return false
+	}
+	for _, character := range value {
+		if !(character >= '0' && character <= '9') && !(character >= 'a' && character <= 'f') {
+			return false
+		}
+	}
+	return true
 }
 
 func coverageReportDate(manifestDate, override string) (string, error) {
@@ -119,6 +216,9 @@ func coverageReportDate(manifestDate, override string) (string, error) {
 // inferredFeature gives tests without a Test262 `features` tag a stable,
 // path-derived bucket instead of hiding them in a large "unclassified" group.
 func inferredFeature(name string) string {
+	if base, _, found := strings.Cut(name, "#"); found {
+		name = base
+	}
 	parts := strings.Split(filepath.ToSlash(name), "/")
 	if len(parts) >= 3 && parts[0] == "test" && parts[1] == "built-ins" {
 		return "path:built-ins/" + parts[2]

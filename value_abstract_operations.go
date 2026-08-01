@@ -231,7 +231,7 @@ func toPropertyKey(value Value) (PropertyKey, error) {
 	if err != nil {
 		return PropertyKey{}, err
 	}
-	return StringKey(text.goString()), nil
+	return stringKeyUTF16(text), nil
 }
 
 func strictlyEqual(left, right Value) bool {

@@ -32,33 +32,89 @@ func positionString(position Position) string {
 }
 
 func (runtime *Runtime) instantiateDeclarations(statements []stmt, environment *environment) error {
+	if err := runtime.instantiateVarDeclarations(statements, environment.variable); err != nil {
+		return err
+	}
 	for _, statement := range statements {
 		switch declaration := statement.(type) {
 		case *varStmt:
-			if declaration.declaration == TokVar {
-				if !environment.hasOwnBinding(declaration.name) {
-					environment.createMutableBinding(declaration.name, Undefined())
+			if declaration.declaration != TokVar {
+				if err := environment.createUninitializedBinding(declaration.name, declaration.declaration != TokConst); err != nil {
+					return err
 				}
-			} else if err := environment.createUninitializedBinding(declaration.name, declaration.declaration != TokConst); err != nil {
-				return err
 			}
 		case *varsStmt:
-			items := make([]stmt, len(declaration.declarations))
-			for index, item := range declaration.declarations {
-				items[index] = item
+			for _, item := range declaration.declarations {
+				if item.declaration != TokVar {
+					if err := environment.createUninitializedBinding(item.name, item.declaration != TokConst); err != nil {
+						return err
+					}
+				}
 			}
-			if err := runtime.instantiateDeclarations(items, environment); err != nil {
+		case *classStmt:
+			if err := environment.createUninitializedBinding(declaration.name, true); err != nil {
 				return err
 			}
 		case *functionStmt:
 			functionValue := runtime.makeFunction(declaration.fn, environment)
-			if environment.hasOwnBinding(declaration.name) {
-				binding := environment.bindings[declaration.name]
+			declarationEnvironment := environment.variable
+			if declarationEnvironment.hasOwnBinding(declaration.name) {
+				binding := declarationEnvironment.bindings[declaration.name]
+				if !binding.mutable || binding.silentReadOnly {
+					return typeError("cannot declare global function " + declaration.name)
+				}
 				binding.value = functionValue
 				binding.initialized = true
-				environment.bindings[declaration.name] = binding
+				declarationEnvironment.bindings[declaration.name] = binding
 			} else {
-				environment.createMutableBinding(declaration.name, functionValue)
+				declarationEnvironment.createMutableBinding(declaration.name, functionValue)
+			}
+		}
+	}
+	return nil
+}
+
+func (runtime *Runtime) instantiateVarDeclarations(statements []stmt, variableEnvironment *environment) error {
+	for _, statement := range statements {
+		switch node := statement.(type) {
+		case *varStmt:
+			if node.declaration == TokVar && !variableEnvironment.hasOwnBinding(node.name) {
+				variableEnvironment.createMutableBinding(node.name, Undefined())
+			}
+		case *varsStmt:
+			for _, declaration := range node.declarations {
+				if declaration.declaration == TokVar && !variableEnvironment.hasOwnBinding(declaration.name) {
+					variableEnvironment.createMutableBinding(declaration.name, Undefined())
+				}
+			}
+		case *blockStmt:
+			if err := runtime.instantiateVarDeclarations(node.body, variableEnvironment); err != nil {
+				return err
+			}
+		case *ifStmt:
+			if err := runtime.instantiateVarDeclarations([]stmt{node.then}, variableEnvironment); err != nil {
+				return err
+			}
+			if node.otherwise != nil {
+				if err := runtime.instantiateVarDeclarations([]stmt{node.otherwise}, variableEnvironment); err != nil {
+					return err
+				}
+			}
+		case *whileStmt:
+			if err := runtime.instantiateVarDeclarations([]stmt{node.body}, variableEnvironment); err != nil {
+				return err
+			}
+		case *withStmt:
+			if err := runtime.instantiateVarDeclarations([]stmt{node.body}, variableEnvironment); err != nil {
+				return err
+			}
+		case *forStmt:
+			if err := runtime.instantiateVarDeclarations([]stmt{node.init, node.body}, variableEnvironment); err != nil {
+				return err
+			}
+		case *labelledStmt:
+			if err := runtime.instantiateVarDeclarations([]stmt{node.body}, variableEnvironment); err != nil {
+				return err
 			}
 		}
 	}
@@ -66,14 +122,21 @@ func (runtime *Runtime) instantiateDeclarations(statements []stmt, environment *
 }
 
 func (runtime *Runtime) evalStatements(statements []stmt, environment *environment) completion {
-	result := normalCompletion(Undefined())
+	result := emptyCompletion()
 	for _, statement := range statements {
 		if err := runtime.checkpoint(statement.span()); err != nil {
 			return operationalCompletion(err, statement.span())
 		}
-		result = runtime.evalStatement(statement, environment)
-		if result.abrupt() {
-			return result
+		statementResult := runtime.evalStatement(statement, environment)
+		if statementResult.abrupt() {
+			if statementResult.empty {
+				statementResult.value = result.value
+				statementResult.empty = result.empty
+			}
+			return statementResult
+		}
+		if !statementResult.empty {
+			result = statementResult
 		}
 	}
 	return result
@@ -81,6 +144,8 @@ func (runtime *Runtime) evalStatements(statements []stmt, environment *environme
 
 func (runtime *Runtime) evalStatement(statement stmt, environment *environment) completion {
 	switch node := statement.(type) {
+	case *emptyStmt:
+		return emptyCompletion()
 	case *exprStmt:
 		value, err := runtime.eval(node.e, environment)
 		if err != nil {
@@ -88,16 +153,27 @@ func (runtime *Runtime) evalStatement(statement stmt, environment *environment) 
 		}
 		return normalCompletion(value)
 	case *varStmt:
+		if node.declaration == TokVar && !node.hasInitializer {
+			return emptyCompletion()
+		}
 		value, err := runtime.eval(node.value, environment)
 		if err == nil {
-			err = environment.initializeBinding(node.name, value)
+			declarationEnvironment := environment
+			if node.declaration == TokVar {
+				declarationEnvironment = environment.variable
+			}
+			if node.declaration == TokVar {
+				err = declarationEnvironment.putMutableBinding(node.name, value, runtime.exec.strict)
+			} else {
+				err = declarationEnvironment.initializeBinding(node.name, value)
+			}
 		}
 		if err != nil {
 			return throwCompletion(err, node.span())
 		}
-		return normalCompletion(value)
+		return emptyCompletion()
 	case *varsStmt:
-		result := normalCompletion(Undefined())
+		result := emptyCompletion()
 		for _, declaration := range node.declarations {
 			result = runtime.evalStatement(declaration, environment)
 			if result.abrupt() {
@@ -106,11 +182,16 @@ func (runtime *Runtime) evalStatement(statement stmt, environment *environment) 
 		}
 		return result
 	case *functionStmt:
-		value, err := environment.getBindingValue(node.name)
+		return emptyCompletion()
+	case *classStmt:
+		value, err := runtime.evalClass(node.definition, environment)
+		if err == nil {
+			err = environment.initializeBinding(node.name, value)
+		}
 		if err != nil {
 			return throwCompletion(err, node.span())
 		}
-		return normalCompletion(value)
+		return emptyCompletion()
 	case *returnStmt:
 		value, err := runtime.eval(node.value, environment)
 		if err != nil {
@@ -136,15 +217,31 @@ func (runtime *Runtime) evalStatement(statement stmt, environment *environment) 
 		}
 		return normalCompletion(Undefined())
 	case *whileStmt:
-		return runtime.evalWhile(node, environment)
+		return runtime.evalWhile(node, environment, nil)
+	case *withStmt:
+		objectValue, err := runtime.eval(node.object, environment)
+		if err != nil {
+			return throwCompletion(err, node.object.span())
+		}
+		objectValue, err = runtime.toObjectValue(objectValue)
+		if err != nil {
+			return throwCompletion(err, node.object.span())
+		}
+		return runtime.evalStatement(node.body, newObjectEnvironment(runtime, objectValue, environment))
 	case *forStmt:
-		return runtime.evalFor(node, environment)
+		return runtime.evalFor(node, environment, nil)
+	case *breakStmt:
+		return breakCompletion(node.target, node.span())
+	case *continueStmt:
+		return continueCompletion(node.target, node.span())
+	case *labelledStmt:
+		return runtime.evalLabelled(node, environment, nil)
 	default:
 		return throwCompletion(typeError("unsupported statement"), statement.span())
 	}
 }
 
-func (runtime *Runtime) evalWhile(statement *whileStmt, environment *environment) completion {
+func (runtime *Runtime) evalWhile(statement *whileStmt, environment *environment, labelSet []string) completion {
 	result := normalCompletion(Undefined())
 	for {
 		if err := runtime.checkpoint(statement.span()); err != nil {
@@ -157,14 +254,26 @@ func (runtime *Runtime) evalWhile(statement *whileStmt, environment *environment
 		if !toBoolean(test) {
 			return result
 		}
-		result = runtime.evalStatement(statement.body, environment)
-		if result.abrupt() {
-			return result
+		bodyResult := runtime.evalStatement(statement.body, environment)
+		switch bodyResult.kind {
+		case completionBreak:
+			if bodyResult.target == "" {
+				return result
+			}
+			return bodyResult
+		case completionContinue:
+			if bodyResult.target != "" && !containsLabel(labelSet, bodyResult.target) {
+				return bodyResult
+			}
+		case completionNormal:
+			result = bodyResult
+		default:
+			return bodyResult
 		}
 	}
 }
 
-func (runtime *Runtime) evalFor(statement *forStmt, environment *environment) completion {
+func (runtime *Runtime) evalFor(statement *forStmt, environment *environment, labelSet []string) completion {
 	loopEnvironment := environment
 	if statement.lexical {
 		loopEnvironment = newEnvironment(environment)
@@ -188,9 +297,21 @@ func (runtime *Runtime) evalFor(statement *forStmt, environment *environment) co
 		if !toBoolean(test) {
 			return result
 		}
-		result = runtime.evalStatement(statement.body, loopEnvironment)
-		if result.abrupt() {
-			return result
+		bodyResult := runtime.evalStatement(statement.body, loopEnvironment)
+		switch bodyResult.kind {
+		case completionBreak:
+			if bodyResult.target == "" {
+				return result
+			}
+			return bodyResult
+		case completionContinue:
+			if bodyResult.target != "" && !containsLabel(labelSet, bodyResult.target) {
+				return bodyResult
+			}
+		case completionNormal:
+			result = bodyResult
+		default:
+			return bodyResult
 		}
 		if statement.lexical {
 			loopEnvironment = loopEnvironment.cloneLocal()
@@ -199,6 +320,34 @@ func (runtime *Runtime) evalFor(statement *forStmt, environment *environment) co
 			return throwCompletion(err, statement.update.span())
 		}
 	}
+}
+
+func (runtime *Runtime) evalLabelled(statement *labelledStmt, environment *environment, labelSet []string) completion {
+	labelSet = append(labelSet, statement.label)
+	var result completion
+	switch body := statement.body.(type) {
+	case *labelledStmt:
+		result = runtime.evalLabelled(body, environment, labelSet)
+	case *whileStmt:
+		result = runtime.evalWhile(body, environment, labelSet)
+	case *forStmt:
+		result = runtime.evalFor(body, environment, labelSet)
+	default:
+		result = runtime.evalStatement(body, environment)
+	}
+	if result.kind == completionBreak && result.target == statement.label {
+		return normalCompletion(result.value)
+	}
+	return result
+}
+
+func containsLabel(labels []string, target string) bool {
+	for _, label := range labels {
+		if label == target {
+			return true
+		}
+	}
+	return false
 }
 
 func (runtime *Runtime) eval(expression expr, environment *environment) (Value, error) {
@@ -236,6 +385,10 @@ func (runtime *Runtime) eval(expression expr, environment *environment) (Value, 
 		return object, nil
 	case *functionExpr:
 		return runtime.makeFunction(node, environment), nil
+	case *classExpr:
+		return runtime.evalClass(node, environment)
+	case *newTargetExpr:
+		return runtime.exec.newTarget, nil
 	case *unaryExpr:
 		return runtime.evalUnary(node, environment)
 	case *updateExpr:
@@ -296,9 +449,39 @@ func (runtime *Runtime) evalReference(expression expr, environment *environment)
 	case *identExpr:
 		return bindingReference(runtime, environment, target.name), nil
 	case *memberExpr:
+		if identifier, ok := target.object.(*identExpr); ok && identifier.name == "super" {
+			activeFunction := runtime.exec.activeFunction
+			if activeFunction.k != KindFunction || activeFunction.f.homeObject == nil {
+				return reference{}, referenceError("super property is not valid in this context")
+			}
+			receiver, err := environment.getBindingValue("this")
+			if err != nil {
+				return reference{}, err
+			}
+			property, err := runtime.eval(target.property, environment)
+			if err != nil {
+				return reference{}, err
+			}
+			key, err := runtime.toPropertyKey(property)
+			if err != nil {
+				return reference{}, err
+			}
+			superBase := activeFunction.f.homeObject.prototype
+			if superBase == nil {
+				return reference{}, typeError("super base is null")
+			}
+			return propertyReferenceWithReceiver(runtime, Value{k: KindObject, o: superBase}, key, receiver), nil
+		}
 		base, err := runtime.eval(target.object, environment)
 		if err != nil {
 			return reference{}, err
+		}
+		if privateName, ok := target.property.(*privateNameExpr); ok {
+			identifier := environment.resolvePrivateName(privateName.name)
+			if identifier == nil {
+				return reference{}, &Exception{Name: "SyntaxError", Message: "private name " + privateName.name + " is not declared"}
+			}
+			return privateReference(runtime, base, identifier), nil
 		}
 		property, err := runtime.eval(target.property, environment)
 		if err != nil {
@@ -315,6 +498,28 @@ func (runtime *Runtime) evalReference(expression expr, environment *environment)
 }
 
 func (runtime *Runtime) evalUnary(expression *unaryExpr, environment *environment) (Value, error) {
+	if expression.op == TokDelete {
+		switch expression.right.(type) {
+		case *identExpr, *memberExpr:
+			reference, err := runtime.evalReference(expression.right, environment)
+			if err != nil {
+				return Undefined(), err
+			}
+			deleted, err := reference.delete()
+			if err != nil {
+				return Undefined(), err
+			}
+			if !deleted && reference.strict {
+				return Undefined(), typeError("property cannot be deleted")
+			}
+			return Boolean(deleted), nil
+		default:
+			if _, err := runtime.eval(expression.right, environment); err != nil {
+				return Undefined(), err
+			}
+			return Boolean(true), nil
+		}
+	}
 	if expression.op == TokTypeof {
 		if identifier, ok := expression.right.(*identExpr); ok && environment.resolveBinding(identifier.name) == nil {
 			return String("undefined"), nil
@@ -420,6 +625,16 @@ func (runtime *Runtime) applyBinaryOperator(operator TokenType, left, right Valu
 		}
 		rightNumber, err := runtime.toNumber(rightPrimitive)
 		return Number(leftNumber + rightNumber), err
+	case TokIn:
+		object := objectRecord(right)
+		if object == nil {
+			return Undefined(), typeError("right-hand side of 'in' is not an object")
+		}
+		key, err := runtime.toPropertyKey(left)
+		if err != nil {
+			return Undefined(), err
+		}
+		return Boolean(ordinaryHasProperty(object, key)), nil
 	case TokLT, TokLE, TokGT, TokGE:
 		leftPrimitive, err := runtime.toPrimitive(left, false)
 		if err != nil {

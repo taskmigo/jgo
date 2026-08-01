@@ -7,8 +7,12 @@ type intrinsics struct {
 	functionPrototype *Object
 	arrayPrototype    *Object
 	stringPrototype   *Object
+	booleanPrototype  *Object
+	numberPrototype   *Object
 	symbolPrototype   *Object
 	weakMapPrototype  *Object
+	evalFunction      Value
+	throwTypeError    Value
 }
 
 func (runtime *Runtime) installGlobalBuiltins() {
@@ -16,8 +20,12 @@ func (runtime *Runtime) installGlobalBuiltins() {
 	runtime.intrinsics.functionPrototype = newObject(runtime.intrinsics.objectPrototype)
 	runtime.intrinsics.arrayPrototype = newObject(runtime.intrinsics.objectPrototype)
 	runtime.intrinsics.stringPrototype = newObject(runtime.intrinsics.objectPrototype)
+	runtime.intrinsics.booleanPrototype = newObject(runtime.intrinsics.objectPrototype)
+	runtime.intrinsics.numberPrototype = newObject(runtime.intrinsics.objectPrototype)
 	runtime.intrinsics.symbolPrototype = newObject(runtime.intrinsics.objectPrototype)
 	runtime.intrinsics.stringPrototype.boxed = String("")
+	runtime.intrinsics.booleanPrototype.boxed = Boolean(false)
+	runtime.intrinsics.numberPrototype.boxed = Number(0)
 	runtime.intrinsics.weakMapPrototype = newObject(runtime.intrinsics.objectPrototype)
 	runtime.iteratorSymbol = newSymbol(jsString(String("Symbol.iterator").s), false).sy
 	runtime.hasInstanceSymbol = newSymbol(jsString(String("Symbol.hasInstance").s), false).sy
@@ -37,6 +45,12 @@ func (runtime *Runtime) installGlobalBuiltins() {
 		if receiver.k == KindObject && receiver.o.boxed.k == KindString {
 			return String("[object String]"), nil
 		}
+		if receiver.k == KindObject && receiver.o.boxed.k == KindBoolean {
+			return String("[object Boolean]"), nil
+		}
+		if receiver.k == KindObject && receiver.o.boxed.k == KindNumber {
+			return String("[object Number]"), nil
+		}
 		if receiver.k == KindObject && receiver.o.boxed.k == KindSymbol {
 			return String("[object Symbol]"), nil
 		}
@@ -52,7 +66,7 @@ func (runtime *Runtime) installGlobalBuiltins() {
 		}
 		_, found := ownProperty(receiver, key)
 		if receiver.k == KindString && !key.isSymbol() {
-			_, found = stringOwnProperty(receiver, key.name)
+			_, found = stringOwnProperty(receiver, key.goString())
 		}
 		return Boolean(found), nil
 	}), "hasOwnProperty", 1))
@@ -66,7 +80,7 @@ func (runtime *Runtime) installGlobalBuiltins() {
 		}
 		descriptor, found := ownProperty(receiver, key)
 		if !found && receiver.k == KindString && !key.isSymbol() {
-			_, found = stringOwnProperty(receiver, key.name)
+			_, found = stringOwnProperty(receiver, key.goString())
 			descriptor.Enumerable = found
 		}
 		return Boolean(found && descriptor.Enumerable), nil
@@ -87,17 +101,39 @@ func (runtime *Runtime) installGlobalBuiltins() {
 		}
 		return runtime.call(receiver, argument(arguments, 0), arguments[min(1, len(arguments)):], Span{})
 	}), "call", 1))
-	runtime.intrinsics.functionPrototype.properties[PropertyKey{symbol: runtime.hasInstanceSymbol}] = PropertyDescriptor{
-		Value: defineFunctionMetadata(nativeValue(functionHasInstance), "[Symbol.hasInstance]", 1), Configurable: false,
+	runtime.intrinsics.throwTypeError = defineFunctionMetadata(nativeValue(func(_ *Runtime, _ Value, _ []Value) (Value, error) {
+		return Undefined(), typeError("restricted function property")
+	}), "", 0)
+	for _, name := range []string{"caller", "arguments"} {
+		storeProperty(runtime.intrinsics.functionPrototype, StringKey(name), completePropertyDescriptor(PropertyDescriptor{
+			Get: runtime.intrinsics.throwTypeError, Set: runtime.intrinsics.throwTypeError,
+			HasGet: true, HasSet: true, Enumerable: false, Configurable: false,
+			HasEnumerable: true, HasConfigurable: true,
+		}))
 	}
+	defineBuiltin(runtime.intrinsics.functionPrototype, "toString", defineFunctionMetadata(nativeValue(func(_ *Runtime, receiver Value, _ []Value) (Value, error) {
+		if receiver.k != KindFunction || receiver.f.call == nil {
+			return Undefined(), typeError("Function.prototype.toString called on incompatible receiver")
+		}
+		if receiver.f.body != nil {
+			return String("function " + receiver.f.name + "() { [ECMAScript code] }"), nil
+		}
+		return String("function () { [native code] }"), nil
+	}), "toString", 0))
+	storeProperty(runtime.intrinsics.functionPrototype, PropertyKey{symbol: runtime.hasInstanceSymbol}, dataProperty(
+		defineFunctionMetadata(nativeValue(functionHasInstance), "[Symbol.hasInstance]", 1), false, false, false,
+	))
 
 	runtime.installObjectBuiltin()
+	runtime.installBooleanBuiltin()
+	runtime.installNumberBuiltin()
 	runtime.installSymbolBuiltin()
 	runtime.installArrayBuiltin()
 	runtime.installStringBuiltin()
 	runtime.installWeakMapBuiltin()
-	runtime.global.createMutableBinding("NaN", Number(math.NaN()))
-	runtime.global.createMutableBinding("Infinity", Number(math.Inf(1)))
+	runtime.installEvalAndFunctionBuiltins()
+	runtime.global.bindings["NaN"] = binding{value: Number(math.NaN()), mutable: true, initialized: true, silentReadOnly: true}
+	runtime.global.bindings["Infinity"] = binding{value: Number(math.Inf(1)), mutable: true, initialized: true, silentReadOnly: true}
 	runtime.installGlobalThis()
 }
 
@@ -139,6 +175,9 @@ func (runtime *Runtime) newArray(values ...Value) Value {
 func (runtime *Runtime) installGlobalThis() {
 	globalThis := runtime.newOrdinaryObject()
 	_ = defineProperty(globalThis, StringKey("globalThis"), defaultProperty(globalThis))
+	_ = defineProperty(globalThis, StringKey("NaN"), dataProperty(Number(math.NaN()), false, false, false))
+	_ = defineProperty(globalThis, StringKey("Infinity"), dataProperty(Number(math.Inf(1)), false, false, false))
+	_ = defineProperty(globalThis, StringKey("undefined"), dataProperty(Undefined(), false, false, false))
 	runtime.global.createMutableBinding("globalThis", globalThis)
 	runtime.global.createMutableBinding("this", globalThis)
 }
@@ -151,16 +190,16 @@ func argument(arguments []Value, index int) Value {
 }
 
 func defineBuiltin(object *Object, name string, value Value) {
-	object.properties[StringKey(name)] = PropertyDescriptor{Value: value, Writable: true, Configurable: true}
+	storeProperty(object, StringKey(name), dataProperty(value, true, false, true))
 }
 
 func defineFunctionMetadata(functionValue Value, name string, length int) Value {
 	defineBuiltin(functionValue.f.object, "name", String(name))
-	functionValue.f.object.properties[StringKey("length")] = PropertyDescriptor{Value: Number(float64(length)), Configurable: true}
+	storeProperty(functionValue.f.object, StringKey("length"), dataProperty(Number(float64(length)), false, false, true))
 	return functionValue
 }
 
 func linkConstructor(constructor Value, prototype *Object) {
-	constructor.f.object.properties[StringKey("prototype")] = PropertyDescriptor{Value: Value{k: KindObject, o: prototype}}
-	prototype.properties[StringKey("constructor")] = PropertyDescriptor{Value: constructor, Writable: true, Configurable: true}
+	storeProperty(constructor.f.object, StringKey("prototype"), dataProperty(Value{k: KindObject, o: prototype}, false, false, false))
+	storeProperty(prototype, StringKey("constructor"), dataProperty(constructor, true, false, true))
 }

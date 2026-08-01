@@ -73,7 +73,14 @@ func (runtime *Runtime) installObjectBuiltin() {
 		}
 		if value.k != KindNull && value.k != KindUndefined {
 			prototype := runtime.intrinsics.objectPrototype
-			if value.k == KindSymbol {
+			switch value.k {
+			case KindBoolean:
+				prototype = runtime.intrinsics.booleanPrototype
+			case KindNumber:
+				prototype = runtime.intrinsics.numberPrototype
+			case KindString:
+				prototype = runtime.intrinsics.stringPrototype
+			case KindSymbol:
 				prototype = runtime.intrinsics.symbolPrototype
 			}
 			object := newObject(prototype)
@@ -97,7 +104,7 @@ func (runtime *Runtime) installObjectBuiltin() {
 		}
 		_, found := ownProperty(object, key)
 		if object.k == KindString && !key.isSymbol() {
-			_, found = stringOwnProperty(object, key.name)
+			_, found = stringOwnProperty(object, key.goString())
 		}
 		return Boolean(found), nil
 	}), "hasOwn", 2))
@@ -120,13 +127,13 @@ func objectPreventExtensions(_ *Runtime, _ Value, arguments []Value) (Value, err
 	if object == nil {
 		return target, nil
 	}
-	object.extensible = false
+	ordinaryPreventExtensions(object)
 	return target, nil
 }
 
 func objectIsExtensible(_ *Runtime, _ Value, arguments []Value) (Value, error) {
 	object := objectRecord(argument(arguments, 0))
-	return Boolean(object != nil && object.extensible), nil
+	return Boolean(object != nil && ordinaryIsExtensible(object)), nil
 }
 
 func objectDefineProperty(runtime *Runtime, _ Value, arguments []Value) (Value, error) {
@@ -143,35 +150,49 @@ func objectDefineProperty(runtime *Runtime, _ Value, arguments []Value) (Value, 
 		return Undefined(), typeError("property descriptor must be an object")
 	}
 	descriptor := PropertyDescriptor{}
-	if current, found := ownProperty(target, key); found {
-		descriptor = current
-	}
 	if value, found, err := getProperty(runtime, descriptorObject, StringKey("value")); err != nil {
 		return Undefined(), err
 	} else if found {
-		descriptor.Value = value
+		descriptor.Value, descriptor.HasValue = value, true
 	}
-	_, hasGetter, err := getProperty(runtime, descriptorObject, StringKey("get"))
-	if err != nil {
-		return Undefined(), err
-	}
-	_, hasSetter, err := getProperty(runtime, descriptorObject, StringKey("set"))
-	if err != nil {
-		return Undefined(), err
-	}
-	if hasGetter || hasSetter {
-		return Undefined(), typeError("accessor property descriptors are not supported")
-	}
-	for name, destination := range map[string]*bool{"writable": &descriptor.Writable, "enumerable": &descriptor.Enumerable, "configurable": &descriptor.Configurable} {
+	for name, destination := range map[string]struct {
+		value *Value
+		has   *bool
+	}{
+		"get": {value: &descriptor.Get, has: &descriptor.HasGet},
+		"set": {value: &descriptor.Set, has: &descriptor.HasSet},
+	} {
 		value, found, err := getProperty(runtime, descriptorObject, StringKey(name))
 		if err != nil {
 			return Undefined(), err
 		}
 		if found {
-			*destination = toBoolean(value)
+			if !value.IsUndefined() && (value.k != KindFunction || value.f.call == nil) {
+				return Undefined(), typeError("property descriptor " + name + " must be callable or undefined")
+			}
+			*destination.value, *destination.has = value, true
 		}
 	}
-	if err := defineProperty(target, key, descriptor); err != nil {
+	for name, destination := range map[string]struct {
+		value *bool
+		has   *bool
+	}{
+		"writable":     {value: &descriptor.Writable, has: &descriptor.HasWritable},
+		"enumerable":   {value: &descriptor.Enumerable, has: &descriptor.HasEnumerable},
+		"configurable": {value: &descriptor.Configurable, has: &descriptor.HasConfigurable},
+	} {
+		value, found, err := getProperty(runtime, descriptorObject, StringKey(name))
+		if err != nil {
+			return Undefined(), err
+		}
+		if found {
+			*destination.value, *destination.has = toBoolean(value), true
+		}
+	}
+	if isAccessorDescriptor(descriptor) && isDataDescriptor(descriptor) {
+		return Undefined(), typeError("property descriptor cannot be both a data and accessor descriptor")
+	}
+	if err := definePropertyWithRuntime(runtime, target, key, descriptor); err != nil {
 		return Undefined(), err
 	}
 	return target, nil
@@ -188,8 +209,8 @@ func objectGetOwnPropertyDescriptor(runtime *Runtime, _ Value, arguments []Value
 	}
 	descriptor, found := ownProperty(target, key)
 	if !found && target.k == KindString && !key.isSymbol() {
-		if value, stringFound := stringOwnProperty(target, key.name); stringFound {
-			descriptor = PropertyDescriptor{Value: value, Enumerable: true}
+		if value, stringFound := stringOwnProperty(target, key.goString()); stringFound {
+			descriptor = dataProperty(value, false, true, false)
 			found = true
 		}
 	}
@@ -197,11 +218,22 @@ func objectGetOwnPropertyDescriptor(runtime *Runtime, _ Value, arguments []Value
 		return Undefined(), nil
 	}
 	result := runtime.newOrdinaryObject()
-	for name, value := range map[string]Value{
-		"value": descriptor.Value, "writable": Boolean(descriptor.Writable),
-		"enumerable": Boolean(descriptor.Enumerable), "configurable": Boolean(descriptor.Configurable),
-	} {
-		_ = defineProperty(result, StringKey(name), defaultProperty(value))
+	type descriptorProperty struct {
+		name  string
+		value Value
+	}
+	properties := make([]descriptorProperty, 0, 4)
+	if isAccessorDescriptor(descriptor) {
+		properties = append(properties, descriptorProperty{"get", descriptor.Get}, descriptorProperty{"set", descriptor.Set})
+	} else {
+		properties = append(properties, descriptorProperty{"value", descriptor.Value}, descriptorProperty{"writable", Boolean(descriptor.Writable)})
+	}
+	properties = append(properties,
+		descriptorProperty{"enumerable", Boolean(descriptor.Enumerable)},
+		descriptorProperty{"configurable", Boolean(descriptor.Configurable)},
+	)
+	for _, property := range properties {
+		_ = defineProperty(result, StringKey(property.name), defaultProperty(property.value))
 	}
 	return result, nil
 }
@@ -239,15 +271,23 @@ func objectCreate(runtime *Runtime, _ Value, arguments []Value) (Value, error) {
 	if propertiesObject == nil {
 		return created, nil
 	}
-	for key, property := range propertiesObject.properties {
+	for _, key := range ordinaryOwnPropertyKeys(propertiesObject) {
+		property, found := ordinaryGetOwnProperty(propertiesObject, key)
+		if !found {
+			continue
+		}
 		if !property.Enumerable {
 			continue
 		}
-		keyValue := String(key.name)
+		keyValue := StringUTF16(key.stringValue())
 		if key.isSymbol() {
 			keyValue = Value{k: KindSymbol, sy: key.symbol}
 		}
-		if _, err := objectDefineProperty(runtime, Undefined(), []Value{created, keyValue, property.Value}); err != nil {
+		descriptorValue, _, err := getProperty(runtime, properties, key)
+		if err != nil {
+			return Undefined(), err
+		}
+		if _, err := objectDefineProperty(runtime, Undefined(), []Value{created, keyValue, descriptorValue}); err != nil {
 			return Undefined(), err
 		}
 	}
@@ -259,10 +299,11 @@ func objectGetPrototypeOf(_ *Runtime, _ Value, arguments []Value) (Value, error)
 	if object == nil {
 		return Undefined(), typeError("Object.getPrototypeOf called on non-object")
 	}
-	if object.prototype == nil {
+	prototype := ordinaryGetPrototypeOf(object)
+	if prototype == nil {
 		return Null(), nil
 	}
-	return Value{k: KindObject, o: object.prototype}, nil
+	return Value{k: KindObject, o: prototype}, nil
 }
 
 func objectSetPrototypeOf(_ *Runtime, _ Value, arguments []Value) (Value, error) {
@@ -279,11 +320,8 @@ func objectSetPrototypeOf(_ *Runtime, _ Value, arguments []Value) (Value, error)
 			return Undefined(), typeError("Object prototype may only be an object or null")
 		}
 	}
-	for candidate := prototype; candidate != nil; candidate = candidate.prototype {
-		if candidate == object {
-			return Undefined(), typeError("cyclic prototype value")
-		}
+	if !ordinarySetPrototypeOf(object, prototype) {
+		return Undefined(), typeError("cyclic prototype value or non-extensible object")
 	}
-	object.prototype = prototype
 	return target, nil
 }

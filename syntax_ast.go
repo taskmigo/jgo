@@ -15,7 +15,11 @@ func (b base) span() Span { return b.S }
 
 type literalExpr struct {
 	base
-	value Value
+	value             Value
+	directiveEligible bool
+	directiveEscaped  bool
+	sourceLiteral     string
+	legacyOctalEscape bool
 }
 
 func (*literalExpr) exprNode() {}
@@ -26,6 +30,13 @@ type identExpr struct {
 }
 
 func (*identExpr) exprNode() {}
+
+type privateNameExpr struct {
+	base
+	name string
+}
+
+func (*privateNameExpr) exprNode() {}
 
 type unaryExpr struct {
 	base
@@ -107,9 +118,46 @@ type functionExpr struct {
 	name   string
 	params []string
 	body   []stmt
+	strict bool
 }
 
 func (*functionExpr) exprNode() {}
+
+type newTargetExpr struct{ base }
+
+func (*newTargetExpr) exprNode() {}
+
+type classElement struct {
+	key         expr
+	method      *functionExpr
+	initializer expr
+	static      bool
+	accessor    string
+	field       bool
+	generator   bool
+	staticBlock []stmt
+}
+
+type classExpr struct {
+	base
+	name     string
+	heritage expr
+	elements []classElement
+}
+
+func (*classExpr) exprNode() {}
+
+type classStmt struct {
+	base
+	name       string
+	definition *classExpr
+}
+
+func (*classStmt) stmtNode() {}
+
+type emptyStmt struct{ base }
+
+func (*emptyStmt) stmtNode() {}
 
 type exprStmt struct {
 	base
@@ -120,9 +168,10 @@ func (*exprStmt) stmtNode() {}
 
 type varStmt struct {
 	base
-	name        string
-	value       expr
-	declaration TokenType
+	name           string
+	value          expr
+	declaration    TokenType
+	hasInitializer bool
 }
 
 func (*varStmt) stmtNode() {}
@@ -157,6 +206,14 @@ type whileStmt struct {
 
 func (*whileStmt) stmtNode() {}
 
+type withStmt struct {
+	base
+	object expr
+	body   stmt
+}
+
+func (*withStmt) stmtNode() {}
+
 type forStmt struct {
 	base
 	init         stmt
@@ -166,6 +223,28 @@ type forStmt struct {
 }
 
 func (*forStmt) stmtNode() {}
+
+type breakStmt struct {
+	base
+	target string
+}
+
+func (*breakStmt) stmtNode() {}
+
+type continueStmt struct {
+	base
+	target string
+}
+
+func (*continueStmt) stmtNode() {}
+
+type labelledStmt struct {
+	base
+	label string
+	body  stmt
+}
+
+func (*labelledStmt) stmtNode() {}
 
 type returnStmt struct {
 	base

@@ -52,6 +52,44 @@ func TestForLoopLexicalIterationsAndComma(t *testing.T) {
 	}
 }
 
+func TestVarDeclarationsUseTheContainingVariableEnvironment(t *testing.T) {
+	tests := []struct {
+		name   string
+		source string
+		want   float64
+	}{
+		{
+			name:   "loop block does not recreate var",
+			source: `var index = 0; while (index < 3) { var value; index = index + 1; value = index; } value;`,
+			want:   3,
+		},
+		{
+			name:   "declaration without initializer does not overwrite",
+			source: `var value = 7; { var value; } value;`,
+			want:   7,
+		},
+		{
+			name:   "nested var is hoisted before execution",
+			source: `value = 5; if (false) { var value = 9; } value;`,
+			want:   5,
+		},
+		{
+			name:   "function variable environment is isolated",
+			source: `var value = 1; function update() { if (true) { var value = 2; } return value; } update() + value;`,
+			want:   3,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			value := evaluateForTest(t, New(Config{}), test.source)
+			number, err := value.ToNumber()
+			if err != nil || number != test.want {
+				t.Fatalf("value = %s, want %v", value.Inspect(), test.want)
+			}
+		})
+	}
+}
+
 func TestPrefixUpdateAndPerIterationBindings(t *testing.T) {
 	value := evaluateForTest(t, New(Config{}), `
 		let closures=[];

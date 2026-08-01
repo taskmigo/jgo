@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "supported": [
+    "script-basic-expressions",
+    "ordinary-functions-subset",
+    "ordinary-objects-subset",
+    "data-and-accessor-property-descriptors",
+    "utf16-string-and-property-keys",
+    "ordinary-object-internal-methods",
+    "boxed-boolean-number-string-symbol",
+    "array-and-string-subset",
+    "symbols-subset",
+    "weakmap-subset",
+    "strict-mode",
+    "classes"
+  ],
+  "unsupported": [
+    {"feature": "generators", "reason": "unsupported-feature"},
+    {"feature": "promises", "reason": "unsupported-feature"},
+    {"feature": "async-execution", "reason": "unsupported-feature"},
+    {"feature": "source-text-modules", "reason": "unsupported-module-kind"},
+    {"feature": "proxy", "reason": "unsupported-feature"},
+    {"feature": "intl-ecma-402", "reason": "unsupported-intl402"},
+    {"feature": "temporal", "reason": "unsupported-feature"},
+    {"feature": "bigint", "reason": "unsupported-bigint"},
+    {"feature": "shared-memory-and-atomics", "reason": "unsupported-concurrency"},
+    {"feature": "annex-b", "reason": "unsupported-annex-b"},
+    {"feature": "json-modules", "reason": "unsupported-module-kind"},
+    {"feature": "external-proposals", "reason": "unsupported-proposal"},
+    {"feature": "platform-module-resolution", "reason": "unsupported-host-capability"},
+    {"feature": "concurrent-runtime-use", "reason": "unsupported-concurrency"}
+  ]
+}

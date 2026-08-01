@@ -12,59 +12,126 @@ import (
 )
 
 func runOne(root, name string, steps uint64, timeout time.Duration) (res result) {
-	started := time.Now()
-	res = result{Name: name}
-	defer func() { res.DurationMS = time.Since(started).Milliseconds() }()
-
 	metadata, body, err := loadTestFile(root, name)
 	if err != nil {
-		res.Status, res.Reason = statusFail, err.Error()
+		return result{Name: name, Status: statusFail, Reason: err.Error()}
+	}
+	return runCase(root, executionCase{SourceName: name, ID: name, Variant: variantForLegacyRun(metadata), Metadata: metadata}, body, capabilityManifest{}, steps, timeout)
+}
+
+func runCase(root string, testCase executionCase, body string, capabilities capabilityManifest, steps uint64, timeout time.Duration) result {
+	res := result{Name: testCase.ID, Features: testCase.Metadata.features}
+	if code, detail := unsupportedTestReason(testCase, capabilities); code != "" {
+		res.Status, res.UnsupportedReason, res.Reason = statusUnsupported, code, detail
 		return res
 	}
-	res.Features = metadata.features
-	if reason := unsupportedTestReason(name, metadata); reason != "" {
-		res.Status, res.Reason = statusUnsupported, reason
+	if testCase.LoadError != "" {
+		res.Status, res.Reason = statusFail, testCase.LoadError
 		return res
 	}
-	source, err := prepareTestSource(root, metadata, body)
+	source, err := prepareTestSource(testCase.Metadata, body, testCase.Variant)
 	if err != nil {
 		res.Status, res.Reason = statusFail, err.Error()
 		return res
 	}
 
 	runtime := gots.New(gots.Config{MaxSteps: steps})
-	if !contains(metadata.flags, "raw") {
+	if testCase.Variant != "raw" {
 		if err := installHarness(runtime); err != nil {
 			res.Status, res.Reason = statusFail, err.Error()
 			return res
 		}
+		if err := evaluateHarnessIncludes(runtime, root, testCase.Metadata); err != nil {
+			classifyHarnessFailure(&res, err)
+			return res
+		}
 	}
 	program, compileErr := runtime.Compile(source)
-	if complete := classifyCompilation(&res, metadata, compileErr); complete {
+	if complete := classifyCompilation(&res, testCase.Metadata, compileErr); complete {
 		return res
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	_, executionErr := runtime.Evaluate(ctx, program)
-	classifyExecution(&res, metadata, executionErr)
+	classifyExecution(&res, testCase.Metadata, executionErr)
 	return res
 }
 
-func unsupportedTestReason(name string, metadata metadata) string {
-	if contains(metadata.flags, "module") {
-		return "unsupported feature: modules"
+func classifyHarnessFailure(result *result, err error) {
+	var syntaxError *gots.SyntaxError
+	var exception *gots.Exception
+	switch {
+	case errors.Is(err, gots.ErrCancelled), errors.Is(err, gots.ErrStepLimit):
+		result.Status = statusTimeout
+	case errors.As(err, &syntaxError), errors.As(err, &exception):
+		result.Status = statusUnsupported
+		result.UnsupportedReason = "unsupported-feature"
+	default:
+		result.Status = statusFail
 	}
-	if contains(metadata.flags, "onlyStrict") {
-		return "unsupported feature: strict mode"
+	result.Reason = err.Error()
+}
+
+func unsupportedTestReason(testCase executionCase, capabilities capabilityManifest) (string, string) {
+	if strings.HasSuffix(testCase.SourceName, "_FIXTURE.js") {
+		return "unsupported-host-capability", "Test262 fixture is not a directly runnable test"
 	}
-	if strings.HasPrefix(filepath.ToSlash(name), "test/annexB/") {
-		return "unsupported feature: Annex B"
+	if testCase.Variant == "module" {
+		if !supportsCapability(capabilities, "source-text-modules") {
+			return unsupportedReason(capabilities, "source-text-modules"), "unsupported feature: modules"
+		}
 	}
-	if contains(metadata.features, "BigInt") {
-		return "unsupported feature: BigInt"
+	if testCase.Variant == "strict" {
+		if !supportsCapability(capabilities, "strict-mode") {
+			return unsupportedReason(capabilities, "strict-mode"), "unsupported feature: strict mode"
+		}
+		if capability, found := unsupportedStrictDependency(testCase.Metadata.features, capabilities); found {
+			return unsupportedReason(capabilities, capability), "unsupported strict-test dependency: " + capability
+		}
 	}
-	return ""
+	if strings.HasPrefix(filepath.ToSlash(testCase.SourceName), "test/annexB/") {
+		return unsupportedReason(capabilities, "annex-b"), "unsupported feature: Annex B"
+	}
+	if contains(testCase.Metadata.features, "BigInt") {
+		return unsupportedReason(capabilities, "bigint"), "unsupported feature: BigInt"
+	}
+	if contains(testCase.Metadata.features, "nonextensible-applies-to-private") {
+		return unsupportedReason(capabilities, "external-proposals"), "unsupported proposal: nonextensible-applies-to-private"
+	}
+	return "", ""
+}
+
+func unsupportedStrictDependency(features []string, capabilities capabilityManifest) (string, bool) {
+	for _, feature := range features {
+		capability := ""
+		switch {
+		case feature == "BigInt":
+			capability = "bigint"
+		case feature == "Proxy":
+			capability = "proxy"
+		case feature == "Temporal":
+			capability = "temporal"
+		case feature == "SharedArrayBuffer" || strings.HasPrefix(feature, "Atomics"):
+			capability = "shared-memory-and-atomics"
+		case feature == "generators":
+			capability = "generators"
+		case feature == "async-functions" || feature == "async-iteration" || feature == "async-generators":
+			capability = "async-execution"
+		case feature == "class" || strings.HasPrefix(feature, "class-"):
+			capability = "classes"
+		case feature == "Promise" || strings.HasPrefix(feature, "Promise.") || strings.HasPrefix(feature, "Promise-"):
+			capability = "promises"
+		case strings.HasPrefix(feature, "Intl.") || strings.HasPrefix(feature, "Intl-"):
+			capability = "intl-ecma-402"
+		case feature == "source-phase-imports" || feature == "source-phase-imports-module-source" || feature == "import-defer":
+			capability = "external-proposals"
+		}
+		if capability != "" && !supportsCapability(capabilities, capability) {
+			return capability, true
+		}
+	}
+	return "", false
 }
 
 func loadTestFile(root, name string) (metadata, string, error) {
@@ -75,27 +142,50 @@ func loadTestFile(root, name string) (metadata, string, error) {
 	return frontmatter(string(source))
 }
 
-func prepareTestSource(root string, metadata metadata, body string) (string, error) {
-	prefix := ""
-	if !contains(metadata.flags, "raw") {
-		for _, include := range metadata.includes {
-			// The host implementation avoids requiring unsupported try/catch syntax.
-			if include == "isConstructor.js" && contains(metadata.features, "Object.is") {
-				continue
-			}
-			includeSource, err := os.ReadFile(filepath.Join(root, "harness", filepath.FromSlash(include)))
-			if err != nil {
-				return "", errors.New("harness include: " + err.Error())
-			}
-			prefix += string(includeSource) + "\n"
-		}
+func prepareTestSource(metadata metadata, body, variant string) (string, error) {
+	source := body
+	if variant == "strict" {
+		source = "\"use strict\";\n" + source
 	}
-	source := prefix + body
 	// This focused lowering avoids claiming general arrow-function support.
 	if contains(metadata.features, "Object.is") && contains(metadata.features, "arrow-function") {
 		source = strings.ReplaceAll(source, "() => {", "function() {")
 	}
 	return source, nil
+}
+
+func evaluateHarnessIncludes(runtime *gots.Runtime, root string, metadata metadata) error {
+	for _, include := range metadata.includes {
+		// The host implementation avoids requiring unsupported try/catch syntax.
+		if include == "isConstructor.js" && contains(metadata.features, "Object.is") {
+			continue
+		}
+		includeSource, err := os.ReadFile(filepath.Join(root, "harness", filepath.FromSlash(include)))
+		if err != nil {
+			return fmt.Errorf("harness include: %w", err)
+		}
+		program, err := runtime.Compile(string(includeSource))
+		if err != nil {
+			return fmt.Errorf("harness include: %w", err)
+		}
+		if _, err := runtime.Evaluate(context.Background(), program); err != nil {
+			return fmt.Errorf("harness include: %w", err)
+		}
+	}
+	return nil
+}
+
+func variantForLegacyRun(metadata metadata) string {
+	switch {
+	case contains(metadata.flags, "raw"):
+		return "raw"
+	case contains(metadata.flags, "module"):
+		return "module"
+	case contains(metadata.flags, "onlyStrict"):
+		return "strict"
+	default:
+		return "sloppy"
+	}
 }
 
 func classifyCompilation(result *result, metadata metadata, err error) bool {
@@ -112,6 +202,7 @@ func classifyCompilation(result *result, metadata metadata, err error) bool {
 		var syntaxError *gots.SyntaxError
 		if errors.As(err, &syntaxError) {
 			result.Status = statusUnsupported
+			result.UnsupportedReason = "unsupported-feature"
 		} else {
 			result.Status = statusFail
 		}
@@ -138,6 +229,7 @@ func classifyExecution(result *result, metadata metadata, err error) {
 		result.Reason = err.Error()
 	} else if !strings.Contains(err.Error(), "Test262 assertion failed") {
 		result.Status = statusUnsupported
+		result.UnsupportedReason = "unsupported-feature"
 		result.Reason = err.Error()
 	} else {
 		result.Status = statusFail

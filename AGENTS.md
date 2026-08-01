@@ -8,9 +8,12 @@ Gots is an experimental, embeddable ECMAScript subset implemented with the Go
 standard library. Correct JavaScript semantics and maintainable feature modules
 take priority over preserving historical behavior.
 
-- The semantic target is the ECMAScript 2027 draft snapshot dated 2026-08-01.
-- Use the normative algorithms at <https://tc39.es/ecma262/> as the source of
-  truth. Do not infer JavaScript behavior from Go behavior or another engine.
+- The semantic target is ECMA-262 commit
+  `994b48ed0c0940edaa0e4ce4d9e358fa3ba91edb`, snapshot date 2026-08-01.
+- Use that pinned revision's normative algorithms as the source of truth. Do
+  not infer JavaScript behavior from Go behavior or another engine.
+- Never implement a TC39 proposal that is not incorporated into the pinned
+  ECMA-262 commit, regardless of its stage or adoption by other runtimes.
 - The project is pre-release. Public APIs may be redesigned when that produces
   a clearer model. Do not add deprecated aliases, compatibility wrappers, or
   migration layers unless explicitly requested.
@@ -22,9 +25,10 @@ take priority over preserving historical behavior.
 ## Mandatory ECMA-262 compliance
 
 Every language behavior implemented by this repository must follow the
-normative ECMAScript algorithms at <https://tc39.es/ecma262/>. This requirement
-is not optional and takes precedence over convenience, compatibility with an
-older implementation, or a simpler Go mapping.
+normative ECMAScript algorithms at
+<https://github.com/tc39/ecma262/tree/994b48ed0c0940edaa0e4ce4d9e358fa3ba91edb>.
+This requirement is not optional and takes precedence over convenience,
+compatibility with an older implementation, or a simpler Go mapping.
 
 For every semantic change:
 

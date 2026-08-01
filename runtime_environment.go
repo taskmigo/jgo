@@ -3,22 +3,59 @@ package gots
 import "fmt"
 
 type binding struct {
-	value       Value
-	mutable     bool
-	initialized bool
+	value          Value
+	mutable        bool
+	initialized    bool
+	lexical        bool
+	silentReadOnly bool
 }
 
 type environment struct {
-	outer    *environment
-	bindings map[string]binding
+	outer        *environment
+	bindings     map[string]binding
+	variable     *environment
+	runtime      *Runtime
+	objectValue  Value
+	object       bool
+	privateNames map[string]*privateIdentifier
+}
+
+func newObjectEnvironment(runtime *Runtime, value Value, outer *environment) *environment {
+	environment := newEnvironment(outer)
+	environment.runtime = runtime
+	environment.objectValue = value
+	environment.object = true
+	return environment
 }
 
 func newEnvironment(outer *environment) *environment {
-	return &environment{outer: outer, bindings: make(map[string]binding)}
+	environment := &environment{outer: outer, bindings: make(map[string]binding), privateNames: make(map[string]*privateIdentifier)}
+	if outer == nil {
+		environment.variable = environment
+	} else {
+		environment.variable = outer.variable
+	}
+	return environment
+}
+
+func (environment *environment) resolvePrivateName(name string) *privateIdentifier {
+	for current := environment; current != nil; current = current.outer {
+		if identifier := current.privateNames[name]; identifier != nil {
+			return identifier
+		}
+	}
+	return nil
+}
+
+func newFunctionEnvironment(outer *environment) *environment {
+	environment := newEnvironment(outer)
+	environment.variable = environment
+	return environment
 }
 
 func (environment *environment) cloneLocal() *environment {
 	clone := newEnvironment(environment.outer)
+	clone.variable = environment.variable
 	for name, binding := range environment.bindings {
 		clone.bindings[name] = binding
 	}
@@ -26,6 +63,10 @@ func (environment *environment) cloneLocal() *environment {
 }
 
 func (environment *environment) hasOwnBinding(name string) bool {
+	if environment.object {
+		object := objectRecord(environment.objectValue)
+		return object != nil && ordinaryHasProperty(object, StringKey(name))
+	}
 	_, found := environment.bindings[name]
 	return found
 }
@@ -38,7 +79,7 @@ func (environment *environment) createUninitializedBinding(name string, mutable 
 	if environment.hasOwnBinding(name) {
 		return fmt.Errorf("identifier %s has already been declared", name)
 	}
-	environment.bindings[name] = binding{mutable: mutable}
+	environment.bindings[name] = binding{mutable: mutable, lexical: true}
 	return nil
 }
 
@@ -58,6 +99,21 @@ func (environment *environment) initializeBinding(name string, value Value) erro
 	return nil
 }
 
+func (environment *environment) initializeThisBinding(value Value) error {
+	target := environment.resolveBinding("this")
+	if target == nil {
+		return referenceError("super() is not valid in this context")
+	}
+	binding := target.bindings["this"]
+	if binding.initialized {
+		return referenceError("super() has already initialized this")
+	}
+	binding.value = value
+	binding.initialized = true
+	target.bindings["this"] = binding
+	return nil
+}
+
 func (environment *environment) resolveBinding(name string) *environment {
 	for current := environment; current != nil; current = current.outer {
 		if current.hasOwnBinding(name) {
@@ -72,6 +128,10 @@ func (environment *environment) getBindingValue(name string) (Value, error) {
 	if target == nil {
 		return Undefined(), referenceError(name + " is not defined")
 	}
+	if target.object {
+		value, _, err := getProperty(target.runtime, target.objectValue, StringKey(name))
+		return value, err
+	}
 	binding := target.bindings[name]
 	if !binding.initialized {
 		return Undefined(), referenceError("cannot access " + name + " before initialization")
@@ -80,9 +140,16 @@ func (environment *environment) getBindingValue(name string) (Value, error) {
 }
 
 func (environment *environment) setMutableBinding(name string, value Value) error {
+	return environment.putMutableBinding(name, value, true)
+}
+
+func (environment *environment) putMutableBinding(name string, value Value, strict bool) error {
 	target := environment.resolveBinding(name)
 	if target == nil {
 		return referenceError(name + " is not defined")
+	}
+	if target.object {
+		return setProperty(target.runtime, target.objectValue, StringKey(name), value)
 	}
 	binding := target.bindings[name]
 	if !binding.initialized {
@@ -90,6 +157,12 @@ func (environment *environment) setMutableBinding(name string, value Value) erro
 	}
 	if !binding.mutable {
 		return typeError("assignment to constant " + name)
+	}
+	if binding.silentReadOnly {
+		if strict {
+			return typeError("assignment to read-only global " + name)
+		}
+		return nil
 	}
 	binding.value = value
 	target.bindings[name] = binding

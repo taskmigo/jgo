@@ -40,7 +40,7 @@ func calculateCoverage(counts counts) coverage {
 func renderSummary(report report) string {
 	counts := report.Counts
 	builder := &strings.Builder{}
-	fmt.Fprintf(builder, "## Test262 %s (%s)\n\n**ECMA target:** %s<br>\n**Test262 execution coverage:** %.2f%% (%d/%d tests reached execution)<br>\n**Test262 overall pass rate:** %.2f%% (%d/%d)<br>\n**Pass rate among executed tests:** %.2f%% (%d/%d)\n\n| pass | fail | skip | unsupported | timeout | total |\n|---:|---:|---:|---:|---:|---:|\n| %d | %d | %d | %d | %d | %d |\n\n### By feature\n\n| feature | pass | fail | unsupported | timeout | total |\n|---|---:|---:|---:|---:|---:|\n", report.Commit, report.Mode, report.ECMAVersion, report.Coverage.CoveragePercent, report.Coverage.CoveredTests, counts.Total, report.Coverage.OverallPassPercent, counts.Pass, counts.Total, report.Coverage.CoveredPassPercent, counts.Pass, report.Coverage.CoveredTests, counts.Pass, counts.Fail, counts.Skip, counts.Unsupported, counts.Timeout, counts.Total)
+	fmt.Fprintf(builder, "## Test262 %s (%s)\n\n**ECMA-262 commit:** `%s`<br>\n**ECMA target:** %s<br>\n**Source files:** %d<br>\n**Expanded cases:** %d<br>\n**Test262 execution coverage:** %.2f%% (%d/%d cases reached execution)<br>\n**Test262 overall pass rate:** %.2f%% (%d/%d)<br>\n**Pass rate among executed tests:** %.2f%% (%d/%d)\n\n| pass | fail | skip | unsupported | timeout | total |\n|---:|---:|---:|---:|---:|---:|\n| %d | %d | %d | %d | %d | %d |\n\n### By feature\n\n| feature | pass | fail | unsupported | timeout | total |\n|---|---:|---:|---:|---:|---:|\n", report.Test262Commit, report.Mode, report.ECMA262Commit, report.ECMAVersion, report.SourceFileDenominator, report.ExpandedCaseDenominator, report.Coverage.CoveragePercent, report.Coverage.CoveredTests, counts.Total, report.Coverage.OverallPassPercent, counts.Pass, counts.Total, report.Coverage.CoveredPassPercent, counts.Pass, report.Coverage.CoveredTests, counts.Pass, counts.Fail, counts.Skip, counts.Unsupported, counts.Timeout, counts.Total)
 	features := make([]string, 0, len(report.ByFeature))
 	for feature := range report.ByFeature {
 		features = append(features, feature)
@@ -88,7 +88,7 @@ func renderChangeSummary(previous baselineSnapshot, current report) string {
 	sort.Strings(changedFeatures)
 
 	regressions := compareBaselineSnapshot(previous, current)
-	changed := previous.Commit != current.Commit || previous.Counts != current.Counts || len(changedFeatures) > 0
+	changed := previous.Test262Commit != current.Test262Commit || previous.ECMA262Commit != current.ECMA262Commit || previous.Counts != current.Counts || len(changedFeatures) > 0
 	builder := &strings.Builder{}
 	fmt.Fprintln(builder, "## Test262 PR baseline diff")
 	fmt.Fprintln(builder)
@@ -105,10 +105,15 @@ func renderChangeSummary(previous baselineSnapshot, current report) string {
 	fmt.Fprintln(builder)
 	fmt.Fprintln(builder, "🟢 improvement · 🔴 regression · unchanged values are shown as `0`")
 	fmt.Fprintln(builder)
-	if previous.Commit != current.Commit {
+	if previous.Test262Commit != current.Test262Commit || previous.ECMA262Commit != current.ECMA262Commit {
 		fmt.Fprintln(builder, "### Metadata change")
 		fmt.Fprintln(builder)
-		fmt.Fprintf(builder, "Pinned Test262 commit: `%s` → `%s` 🔴\n\n", previous.Commit, current.Commit)
+		if previous.Test262Commit != current.Test262Commit {
+			fmt.Fprintf(builder, "Pinned Test262 commit: `%s` → `%s` 🔴\n\n", previous.Test262Commit, current.Test262Commit)
+		}
+		if previous.ECMA262Commit != current.ECMA262Commit {
+			fmt.Fprintf(builder, "Pinned ECMA-262 commit: `%s` → `%s` 🔴\n\n", previous.ECMA262Commit, current.ECMA262Commit)
+		}
 	}
 
 	type rateMetric struct {
@@ -199,7 +204,8 @@ func renderCoverage(report report, reportDate string) string {
 	builder := &strings.Builder{}
 	fmt.Fprintln(builder, "# Test262 coverage report")
 	fmt.Fprintf(builder, "\n**Report date:** %s  \n", reportDate)
-	fmt.Fprintf(builder, "**Pinned Test262 commit:** `%s`  \n", report.Commit)
+	fmt.Fprintf(builder, "**Pinned Test262 commit:** `%s`  \n", report.Test262Commit)
+	fmt.Fprintf(builder, "**Pinned ECMA-262 commit:** `%s`<br>\n", report.ECMA262Commit)
 	fmt.Fprintf(builder, "**ECMA target:** %s\n\n", report.ECMAVersion)
 	fmt.Fprintln(builder, "This report is generated from the complete pinned Test262 suite. **Test262")
 	fmt.Fprintln(builder, "execution coverage** is the percentage of tests that reached execution (pass,")

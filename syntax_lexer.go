@@ -37,6 +37,13 @@ func (l *lexer) next() (Token, error) {
 	}
 
 	character := l.source[l.off]
+	if character == '#' && isIdentStart(l.peek(1)) {
+		l.advance()
+		for l.off < len(l.source) && isIdentPart(l.source[l.off]) {
+			l.advance()
+		}
+		return l.token(TokPrivateIdent, l.source[start.Offset:l.off], start), nil
+	}
 	if isIdentStart(character) {
 		return l.scanIdentifier(start), nil
 	}
@@ -187,6 +194,8 @@ func (l *lexer) scanString(start Position) (Token, error) {
 	quote := l.source[l.off]
 	l.advance()
 	var units []uint16
+	hasEscape := false
+	legacyOctalEscape := false
 	for l.off < len(l.source) && l.source[l.off] != quote {
 		if l.source[l.off] == '\n' {
 			break
@@ -203,11 +212,15 @@ func (l *lexer) scanString(start Position) (Token, error) {
 			}
 			continue
 		}
+		hasEscape = true
 		l.advance()
 		if l.off >= len(l.source) {
 			break
 		}
 		escape := l.source[l.off]
+		if escape >= '1' && escape <= '9' || escape == '0' && l.peek(1) >= '0' && l.peek(1) <= '9' {
+			legacyOctalEscape = true
+		}
 		switch escape {
 		case '\n':
 			l.advance()
@@ -281,6 +294,8 @@ func (l *lexer) scanString(start Position) (Token, error) {
 	token := l.token(TokString, literal, start)
 	tokenUnits := jsString(units).clone()
 	token.stringValue = &tokenUnits
+	token.hasEscape = hasEscape
+	token.legacyOctalEscape = legacyOctalEscape
 	if l.off >= len(l.source) || l.source[l.off] != quote {
 		return token, &SyntaxError{token.Span, token, "unterminated string"}
 	}
@@ -288,6 +303,8 @@ func (l *lexer) scanString(start Position) (Token, error) {
 	token = l.token(TokString, literal, start)
 	tokenUnits = jsString(units).clone()
 	token.stringValue = &tokenUnits
+	token.hasEscape = hasEscape
+	token.legacyOctalEscape = legacyOctalEscape
 	return token, nil
 }
 
@@ -329,10 +346,11 @@ func (l *lexer) scanMultiCharacterOperator(start Position) (Token, bool) {
 }
 
 var keywords = map[string]TokenType{
-	"let": TokLet, "var": TokVar, "const": TokConst, "function": TokFunction,
+	"let": TokLet, "var": TokVar, "const": TokConst, "function": TokFunction, "class": TokClass,
 	"return": TokReturn, "if": TokIf, "else": TokElse, "while": TokWhile,
-	"for": TokFor, "true": TokTrue, "false": TokFalse, "null": TokNull,
-	"undefined": TokUndefined, "new": TokNew, "typeof": TokTypeof,
+	"for": TokFor, "break": TokBreak, "continue": TokContinue,
+	"true": TokTrue, "false": TokFalse, "null": TokNull,
+	"undefined": TokUndefined, "new": TokNew, "typeof": TokTypeof, "delete": TokDelete,
 }
 
 var multiCharacterTokens = []struct {

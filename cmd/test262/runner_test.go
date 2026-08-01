@@ -41,7 +41,7 @@ func TestRunCLISmokeSuite(t *testing.T) {
 	if err := json.Unmarshal(data, &report); err != nil {
 		t.Fatal(err)
 	}
-	if report.Counts != (counts{Pass: 3, Total: 3}) {
+	if report.Counts != (counts{Pass: 6, Total: 6}) {
 		t.Fatalf("unexpected counts: %+v", report.Counts)
 	}
 
@@ -53,10 +53,10 @@ func TestRunCLISmokeSuite(t *testing.T) {
 	if err := xml.Unmarshal(data, &junit); err != nil {
 		t.Fatal(err)
 	}
-	if junit.Tests != 3 || junit.Failures != 0 || junit.Skipped != 0 || len(junit.Cases) != 3 {
+	if junit.Tests != 6 || junit.Failures != 0 || junit.Skipped != 0 || len(junit.Cases) != 6 {
 		t.Fatalf("unexpected JUnit report: %+v", junit)
 	}
-	if summary, err := os.ReadFile(summaryOutput); err != nil || !strings.Contains(string(summary), "execution coverage:** 100.00% (3/3") {
+	if summary, err := os.ReadFile(summaryOutput); err != nil || !strings.Contains(string(summary), "execution coverage:** 100.00% (6/6") {
 		t.Fatalf("summary=%q error=%v", summary, err)
 	}
 }
@@ -74,11 +74,12 @@ func TestRunCLIExitCodes(t *testing.T) {
 	temporary := t.TempDir()
 	baselinePath := filepath.Join(temporary, "baseline.json")
 	baseline := baselineSnapshot{
-		Commit:      "b363f29d3c43c626dc852744ad64a0b48a003693",
-		ECMAVersion: "ECMAScript 2027 draft snapshot 2026-08-01",
-		Mode:        "selection",
-		Counts:      counts{Pass: 4, Total: 3},
-		ByFeature:   map[string]counts{},
+		SchemaVersion: baselineSchemaVersion,
+		Test262Commit: "b363f29d3c43c626dc852744ad64a0b48a003693",
+		ECMAVersion:   "ECMAScript 2027 draft snapshot 2026-08-01",
+		Mode:          "selection",
+		Counts:        counts{Pass: 4, Total: 3},
+		ByFeature:     map[string]counts{},
 	}
 	if err := writeJSON(baselinePath, baseline); err != nil {
 		t.Fatal(err)
@@ -98,12 +99,46 @@ func TestRunCLIExitCodes(t *testing.T) {
 	}
 }
 
+func TestRunnerDefaultStepBudgetCoversLongFiniteCohorts(t *testing.T) {
+	config, err := parseRunnerConfig(nil, &bytes.Buffer{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if config.maxSteps != defaultMaxSteps {
+		t.Fatalf("max steps = %d, want %d", config.maxSteps, defaultMaxSteps)
+	}
+}
+
+func TestSupportedVariantsAreNotBlanketExcluded(t *testing.T) {
+	capabilities := capabilityManifest{Supported: []string{"strict-mode", "source-text-modules"}}
+	for _, testCase := range []executionCase{{Variant: "strict"}, {Variant: "module"}} {
+		if code, detail := unsupportedTestReason(testCase, capabilities); code != "" || detail != "" {
+			t.Fatalf("variant %q excluded: code=%q detail=%q", testCase.Variant, code, detail)
+		}
+	}
+}
+
+func TestSupportedVariantStillHonorsUnsupportedDependencies(t *testing.T) {
+	capabilities := capabilityManifest{
+		Supported:   []string{"strict-mode"},
+		Unsupported: []unsupportedCapability{{Feature: "bigint", Reason: "unsupported-bigint"}},
+	}
+	testCase := executionCase{Variant: "strict", Metadata: metadata{features: []string{"BigInt"}}}
+	code, _ := unsupportedTestReason(testCase, capabilities)
+	if code != "unsupported-bigint" {
+		t.Fatalf("unsupported reason = %q, want unsupported-bigint", code)
+	}
+}
+
 func TestRenderCoverageIsDeterministic(t *testing.T) {
 	r := report{
-		Commit:      "abc",
-		ECMAVersion: "ECMAScript 2025",
-		Mode:        "full",
-		Counts:      counts{Pass: 2, Fail: 1, Skip: 1, Unsupported: 1, Timeout: 1, Total: 6},
+		Test262Commit:           "abc",
+		ECMA262Commit:           "def",
+		SourceFileDenominator:   6,
+		ExpandedCaseDenominator: 6,
+		ECMAVersion:             "ECMAScript 2025",
+		Mode:                    "full",
+		Counts:                  counts{Pass: 2, Fail: 1, Skip: 1, Unsupported: 1, Timeout: 1, Total: 6},
 		ByFeature: map[string]counts{
 			"z": {Unsupported: 1, Total: 1},
 			"a": {Pass: 1, Fail: 1, Skip: 1, Timeout: 1, Total: 4},
@@ -113,7 +148,7 @@ func TestRenderCoverageIsDeterministic(t *testing.T) {
 	got := renderCoverage(r, "2026-08-01")
 	want := `# Test262 coverage report
 
-` + "**Report date:** 2026-08-01  \n" + "**Pinned Test262 commit:** `abc`  \n" + `**ECMA target:** ECMAScript 2025
+` + "**Report date:** 2026-08-01  \n" + "**Pinned Test262 commit:** `abc`  \n" + "**Pinned ECMA-262 commit:** `def`<br>\n" + `**ECMA target:** ECMAScript 2025
 
 This report is generated from the complete pinned Test262 suite. **Test262
 execution coverage** is the percentage of tests that reached execution (pass,
@@ -123,8 +158,11 @@ runner metrics do not by themselves claim complete ECMAScript conformance.
 
 ## Test262 abc (full)
 
+**ECMA-262 commit:** ` + "`def`" + `<br>
 **ECMA target:** ECMAScript 2025<br>
-**Test262 execution coverage:** 66.67% (4/6 tests reached execution)<br>
+**Source files:** 6<br>
+**Expanded cases:** 6<br>
+**Test262 execution coverage:** 66.67% (4/6 cases reached execution)<br>
 **Test262 overall pass rate:** 33.33% (2/6)<br>
 **Pass rate among executed tests:** 50.00% (2/4)
 
@@ -149,13 +187,15 @@ runner metrics do not by themselves claim complete ECMAScript conformance.
 
 func TestRenderChangeSummaryShowsOnlyImprovements(t *testing.T) {
 	previous := baselineSnapshot{
-		Counts:    counts{Pass: 10, Fail: 2, Unsupported: 8, Total: 20},
-		ByFeature: map[string]counts{"a": {Pass: 5, Unsupported: 1, Total: 6}, "unchanged": {Pass: 1, Total: 1}},
+		SchemaVersion: baselineSchemaVersion,
+		Counts:        counts{Pass: 10, Fail: 2, Unsupported: 8, Total: 20},
+		ByFeature:     map[string]counts{"a": {Pass: 5, Unsupported: 1, Total: 6}, "unchanged": {Pass: 1, Total: 1}},
 	}
 	previous.Coverage = calculateCoverage(previous.Counts)
 	current := report{
-		Counts:    counts{Pass: 11, Fail: 2, Unsupported: 7, Total: 20},
-		ByFeature: map[string]counts{"a": {Pass: 6, Total: 6}, "unchanged": {Pass: 1, Total: 1}},
+		SchemaVersion: baselineSchemaVersion,
+		Counts:        counts{Pass: 11, Fail: 2, Unsupported: 7, Total: 20},
+		ByFeature:     map[string]counts{"a": {Pass: 6, Total: 6}, "unchanged": {Pass: 1, Total: 1}},
 	}
 	current.Coverage = calculateCoverage(current.Counts)
 
@@ -200,13 +240,17 @@ Only features with changed results are included.
 
 func TestRenderChangeSummaryShowsRegression(t *testing.T) {
 	previous := baselineSnapshot{
-		Counts:    counts{Pass: 10, Fail: 2, Unsupported: 8, Total: 20},
-		ByFeature: map[string]counts{"b": {Pass: 3, Total: 3}, "unchanged": {Pass: 1, Total: 1}},
+		SchemaVersion:  baselineSchemaVersion,
+		Counts:         counts{Pass: 10, Fail: 2, Unsupported: 8, Total: 20},
+		ByFeature:      map[string]counts{"b": {Pass: 3, Total: 3}, "unchanged": {Pass: 1, Total: 1}},
+		PassingCaseIDs: []string{"test/b.js#sloppy"},
 	}
 	previous.Coverage = calculateCoverage(previous.Counts)
 	current := report{
-		Counts:    counts{Pass: 9, Fail: 3, Unsupported: 8, Total: 20},
-		ByFeature: map[string]counts{"b": {Pass: 2, Fail: 1, Total: 3}, "unchanged": {Pass: 1, Total: 1}},
+		SchemaVersion: baselineSchemaVersion,
+		Counts:        counts{Pass: 9, Fail: 3, Unsupported: 8, Total: 20},
+		ByFeature:     map[string]counts{"b": {Pass: 2, Fail: 1, Total: 3}, "unchanged": {Pass: 1, Total: 1}},
+		Results:       []result{{Name: "test/b.js#sloppy", Status: statusFail}},
 	}
 	current.Coverage = calculateCoverage(current.Counts)
 
@@ -250,16 +294,18 @@ Only features with changed results are included.
 
 func TestRenderChangeSummaryTreatsPinnedCommitChangeAsRegression(t *testing.T) {
 	previous := baselineSnapshot{
-		Commit:    "main-commit",
-		Counts:    counts{Pass: 1, Total: 1},
-		ByFeature: map[string]counts{"a": {Pass: 1, Total: 1}},
+		SchemaVersion: baselineSchemaVersion,
+		Test262Commit: "main-commit",
+		Counts:        counts{Pass: 1, Total: 1},
+		ByFeature:     map[string]counts{"a": {Pass: 1, Total: 1}},
 	}
 	previous.Coverage = calculateCoverage(previous.Counts)
 	current := report{
-		Commit:    "pr-commit",
-		Counts:    previous.Counts,
-		ByFeature: previous.ByFeature,
-		Coverage:  previous.Coverage,
+		SchemaVersion: baselineSchemaVersion,
+		Test262Commit: "pr-commit",
+		Counts:        previous.Counts,
+		ByFeature:     previous.ByFeature,
+		Coverage:      previous.Coverage,
 	}
 	want := `## Test262 PR baseline diff
 
@@ -290,11 +336,12 @@ Pinned Test262 commit: ` + "`main-commit`" + ` → ` + "`pr-commit`" + ` 🔴
 
 func TestRenderChangeSummaryWhenNothingChanged(t *testing.T) {
 	previous := baselineSnapshot{
-		Counts:    counts{Pass: 1, Total: 1},
-		ByFeature: map[string]counts{"a": {Pass: 1, Total: 1}},
+		SchemaVersion: baselineSchemaVersion,
+		Counts:        counts{Pass: 1, Total: 1},
+		ByFeature:     map[string]counts{"a": {Pass: 1, Total: 1}},
 	}
 	previous.Coverage = calculateCoverage(previous.Counts)
-	current := report{Counts: previous.Counts, ByFeature: previous.ByFeature, Coverage: previous.Coverage}
+	current := report{SchemaVersion: baselineSchemaVersion, Counts: previous.Counts, ByFeature: previous.ByFeature, Coverage: previous.Coverage}
 	want := `## Test262 PR baseline diff
 
 > [!TIP]
@@ -319,7 +366,7 @@ func TestRenderChangeSummaryWhenNothingChanged(t *testing.T) {
 }
 
 func TestValidateManifestReportDate(t *testing.T) {
-	valid := manifest{Commit: "abc", ECMAVersion: "ECMAScript 2025", ReportDate: "2026-08-01"}
+	valid := manifest{Commit: strings.Repeat("a", 40), ECMA262Commit: strings.Repeat("b", 40), ECMAVersion: "ECMAScript 2025", ReportDate: "2026-08-01", CapabilityVersion: "v1"}
 	if err := validateManifest(valid); err != nil {
 		t.Fatalf("valid manifest rejected: %v", err)
 	}
@@ -357,8 +404,13 @@ func TestFrontmatter(t *testing.T) {
 }
 
 func TestCompareBaselineRejectsCoverageRegression(t *testing.T) {
-	want := report{Commit: "abc", Counts: counts{Pass: 2, Total: 2}, ByFeature: map[string]counts{"let": {Pass: 2, Total: 2}}}
-	b, err := json.Marshal(want)
+	want := report{
+		SchemaVersion: baselineSchemaVersion, Test262Commit: "abc",
+		SourceFileDenominator: 1, ExpandedCaseDenominator: 2,
+		Counts: counts{Pass: 2, Total: 2}, ByFeature: map[string]counts{"let": {Pass: 2, Total: 2}},
+		Results: []result{{Name: "test/language/let.js#sloppy", Status: statusPass}, {Name: "test/language/let.js#strict", Status: statusPass}},
+	}
+	b, err := json.Marshal(snapshot(want))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -372,6 +424,7 @@ func TestCompareBaselineRejectsCoverageRegression(t *testing.T) {
 	actual := want
 	actual.Counts.Pass = 1
 	actual.ByFeature = map[string]counts{"let": {Pass: 1, Fail: 1, Total: 2}}
+	actual.Results[1].Status = statusFail
 	if got, err := compareBaseline(path, actual); err != nil || len(got) == 0 {
 		t.Fatalf("coverage regression accepted: %v, %v", got, err)
 	}
@@ -379,11 +432,11 @@ func TestCompareBaselineRejectsCoverageRegression(t *testing.T) {
 
 func TestRefreshBaselineComparesBeforeWritingSnapshot(t *testing.T) {
 	old := report{
-		Commit:      "abc",
-		ECMAVersion: "ECMAScript 2025",
-		Mode:        "full",
-		Counts:      counts{Pass: 2, Total: 2},
-		ByFeature:   map[string]counts{"let": {Pass: 2, Total: 2}},
+		SchemaVersion: baselineSchemaVersion, Test262Commit: "abc",
+		ECMAVersion: "ECMAScript 2025", Mode: "full",
+		SourceFileDenominator: 1, ExpandedCaseDenominator: 2,
+		Counts: counts{Pass: 2, Total: 2}, ByFeature: map[string]counts{"let": {Pass: 2, Total: 2}},
+		Results: []result{{Name: "test/language/let.js#sloppy", Status: statusPass}, {Name: "test/language/let.js#strict", Status: statusPass}},
 	}
 	path := filepath.Join(t.TempDir(), "baseline.json")
 	if err := writeCanonicalJSON(path, snapshot(old)); err != nil {
@@ -392,7 +445,7 @@ func TestRefreshBaselineComparesBeforeWritingSnapshot(t *testing.T) {
 	actual := old
 	actual.Counts = counts{Pass: 1, Fail: 1, Total: 2}
 	actual.ByFeature = map[string]counts{"let": {Pass: 1, Fail: 1, Total: 2}}
-	actual.Results = []result{{Name: "test/language/let.js", Status: "fail"}}
+	actual.Results = []result{{Name: "test/language/let.js#sloppy", Status: statusPass}, {Name: "test/language/let.js#strict", Status: statusFail}}
 	actual.Regressions = []string{"not part of the snapshot"}
 
 	problems, err := refreshBaseline(path, actual)
@@ -465,6 +518,104 @@ func TestInferredFeature(t *testing.T) {
 	}
 }
 
+func TestExecutionVariants(t *testing.T) {
+	tests := []struct {
+		name     string
+		metadata metadata
+		want     []string
+	}{
+		{name: "unflagged", want: []string{"sloppy", "strict"}},
+		{name: "onlyStrict", metadata: metadata{flags: []string{"onlyStrict"}}, want: []string{"strict"}},
+		{name: "noStrict", metadata: metadata{flags: []string{"noStrict"}}, want: []string{"sloppy"}},
+		{name: "module", metadata: metadata{flags: []string{"module"}}, want: []string{"module"}},
+		{name: "raw", metadata: metadata{flags: []string{"raw"}}, want: []string{"raw"}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := executionVariants(test.metadata); !reflect.DeepEqual(got, test.want) {
+				t.Fatalf("executionVariants() = %v, want %v", got, test.want)
+			}
+		})
+	}
+}
+
+func TestSnapshotSortsStableCaseIDsAndReasons(t *testing.T) {
+	report := report{
+		Results: []result{
+			{Name: "test/z.js#strict", Status: statusUnsupported, UnsupportedReason: "unsupported-feature"},
+			{Name: "test/b.js#sloppy", Status: statusFail},
+			{Name: "test/a.js#sloppy", Status: statusPass},
+			{Name: "test/c.js#sloppy", Status: statusTimeout},
+			{Name: "test/a.js#strict", Status: statusUnsupported, UnsupportedReason: "unsupported-feature"},
+		},
+	}
+	snapshot := snapshot(report)
+	if !reflect.DeepEqual(snapshot.PassingCaseIDs, []string{"test/a.js#sloppy"}) ||
+		!reflect.DeepEqual(snapshot.FailingCaseIDs, []string{"test/b.js#sloppy"}) ||
+		!reflect.DeepEqual(snapshot.TimeoutCaseIDs, []string{"test/c.js#sloppy"}) {
+		t.Fatalf("unexpected snapshot IDs: %+v", snapshot)
+	}
+	wantUnsupported := []unsupportedCase{
+		{CaseID: "test/a.js#strict", Reason: "unsupported-feature"},
+		{CaseID: "test/z.js#strict", Reason: "unsupported-feature"},
+	}
+	if !reflect.DeepEqual(snapshot.UnsupportedCases, wantUnsupported) {
+		t.Fatalf("unsupported cases = %+v, want %+v", snapshot.UnsupportedCases, wantUnsupported)
+	}
+}
+
+func TestCanonicalReportExcludesTimings(t *testing.T) {
+	report := report{Results: []result{{Name: "test/a.js#sloppy", Status: statusPass}}}
+	path := filepath.Join(t.TempDir(), "report.json")
+	if err := writeCanonicalJSON(path, report); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Contains(data, []byte("duration")) {
+		t.Fatalf("canonical report contains timing data: %s", data)
+	}
+}
+
+func TestV1BaselineResetMustBeExplicit(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "baseline.json")
+	legacy := map[string]any{
+		"commit": "test262", "counts": counts{Pass: 1, Total: 1},
+	}
+	if err := writeJSON(path, legacy); err != nil {
+		t.Fatal(err)
+	}
+	report := report{
+		SchemaVersion: baselineSchemaVersion, Test262Commit: "test262",
+		SourceFileDenominator: 1, ExpandedCaseDenominator: 2,
+		Counts: counts{Pass: 1, Unsupported: 1, Total: 2},
+		Results: []result{
+			{Name: "test/a.js#sloppy", Status: statusPass},
+			{Name: "test/a.js#strict", Status: statusUnsupported, UnsupportedReason: "unsupported-feature"},
+		},
+	}
+	config := runnerConfig{baseline: path, refreshBaseline: true}
+	applyBaseline(config, &report)
+	if len(report.Regressions) == 0 {
+		t.Fatal("implicit v1 reset was accepted")
+	}
+	report.Regressions = nil
+	config.allowV1Reset = true
+	applyBaseline(config, &report)
+	if len(report.Regressions) != 0 {
+		t.Fatalf("explicit v1 reset failed: %v", report.Regressions)
+	}
+	stored, err := readBaseline(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored.SchemaVersion != baselineSchemaVersion {
+		t.Fatalf("stored schema = %d", stored.SchemaVersion)
+	}
+}
+
 func TestUnsupportedTestReason(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -478,7 +629,8 @@ func TestUnsupportedTestReason(t *testing.T) {
 		{name: "test/language/expressions/x.js"},
 	}
 	for _, test := range tests {
-		if got := unsupportedTestReason(test.name, test.metadata); got != test.want {
+		_, got := unsupportedTestReason(executionCase{SourceName: test.name, Variant: variantForLegacyRun(test.metadata), Metadata: test.metadata}, capabilityManifest{})
+		if got != test.want {
 			t.Errorf("unsupportedTestReason(%q) = %q, want %q", test.name, got, test.want)
 		}
 	}

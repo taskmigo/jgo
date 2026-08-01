@@ -15,7 +15,7 @@ func (runtime *Runtime) installArrayBuiltin() {
 				return Undefined(), &Exception{Name: "RangeError", Message: "invalid array length"}
 			}
 			array := runtime.newArray()
-			array.o.properties[StringKey("length")] = PropertyDescriptor{Value: Number(length), Writable: true}
+			storeProperty(array.o, StringKey("length"), dataProperty(Number(length), true, false, false))
 			return array, nil
 		}
 		return runtime.newArray(arguments...), nil
@@ -28,10 +28,11 @@ func (runtime *Runtime) installArrayBuiltin() {
 	defineBuiltin(runtime.intrinsics.arrayPrototype, "at", defineFunctionMetadata(nativeValue(arrayAt), "at", 1))
 	defineBuiltin(runtime.intrinsics.arrayPrototype, "includes", defineFunctionMetadata(nativeValue(arrayIncludes), "includes", 1))
 	defineBuiltin(runtime.intrinsics.arrayPrototype, "join", defineFunctionMetadata(nativeValue(arrayJoin), "join", 1))
+	defineBuiltin(runtime.intrinsics.arrayPrototype, "toLocaleString", defineFunctionMetadata(nativeValue(arrayToLocaleString), "toLocaleString", 0))
 	defineBuiltin(runtime.intrinsics.arrayPrototype, "push", defineFunctionMetadata(nativeValue(arrayPush), "push", 1))
-	runtime.intrinsics.arrayPrototype.properties[PropertyKey{symbol: runtime.iteratorSymbol}] = PropertyDescriptor{
-		Value: defineFunctionMetadata(nativeValue(arrayValuesIterator), "values", 0), Writable: true, Configurable: true,
-	}
+	storeProperty(runtime.intrinsics.arrayPrototype, PropertyKey{symbol: runtime.iteratorSymbol}, dataProperty(
+		defineFunctionMetadata(nativeValue(arrayValuesIterator), "values", 0), true, false, true,
+	))
 	runtime.global.createMutableBinding("Array", defineFunctionMetadata(constructor, "Array", 1))
 }
 
@@ -52,7 +53,7 @@ func arrayOf(runtime *Runtime, constructor Value, arguments []Value) (Value, err
 			return Undefined(), err
 		}
 	}
-	if err := setProperty(result, StringKey("length"), Number(float64(len(arguments)))); err != nil {
+	if err := setProperty(runtime, result, StringKey("length"), Number(float64(len(arguments)))); err != nil {
 		return Undefined(), err
 	}
 	return result, nil
@@ -63,25 +64,86 @@ func arrayFrom(runtime *Runtime, _ Value, arguments []Value) (Value, error) {
 	if source.k == KindNull || source.k == KindUndefined {
 		return Undefined(), typeError("Array.from source is not iterable")
 	}
+	mapFunction := argument(arguments, 1)
+	mapping := !mapFunction.IsUndefined()
+	if mapping && (mapFunction.k != KindFunction || mapFunction.f.call == nil) {
+		return Undefined(), typeError("Array.from mapping function is not callable")
+	}
+	thisArgument := argument(arguments, 2)
 	if values, found, err := iteratorToList(runtime, source); err != nil {
 		return Undefined(), err
 	} else if found {
+		if mapping {
+			for index, value := range values {
+				values[index], err = runtime.call(mapFunction, thisArgument, []Value{value, Number(float64(index))}, Span{})
+				if err != nil {
+					return Undefined(), err
+				}
+			}
+		}
 		return runtime.newArray(values...), nil
 	}
-	object := objectRecord(source)
-	if object == nil || !object.array {
-		return Undefined(), typeError("Array.from source is not iterable")
+	length, err := lengthOfArrayLike(runtime, source)
+	if err != nil {
+		return Undefined(), err
 	}
-	length := arrayLength(object)
 	values := make([]Value, length)
 	for index := range values {
 		value, _, err := getProperty(runtime, source, StringKey(fmtInt(index)))
 		if err != nil {
 			return Undefined(), err
 		}
+		if mapping {
+			value, err = runtime.call(mapFunction, thisArgument, []Value{value, Number(float64(index))}, Span{})
+			if err != nil {
+				return Undefined(), err
+			}
+		}
 		values[index] = value
 	}
 	return runtime.newArray(values...), nil
+}
+
+func arrayToLocaleString(runtime *Runtime, receiver Value, _ []Value) (Value, error) {
+	object, err := runtime.toObjectValue(receiver)
+	if err != nil {
+		return Undefined(), err
+	}
+	length, err := lengthOfArrayLike(runtime, object)
+	if err != nil {
+		return Undefined(), err
+	}
+	separator := jsString{','}
+	var result jsString
+	for index := 0; index < length; index++ {
+		if index > 0 {
+			result = append(result, separator...)
+		}
+		element, _, err := getProperty(runtime, object, StringKey(fmtInt(index)))
+		if err != nil {
+			return Undefined(), err
+		}
+		if element.k == KindUndefined || element.k == KindNull {
+			continue
+		}
+		method, _, err := getProperty(runtime, element, StringKey("toLocaleString"))
+		if err != nil {
+			return Undefined(), err
+		}
+		if method.k != KindFunction || method.f.call == nil {
+			return Undefined(), typeError("element toLocaleString is not callable")
+		}
+		localized, err := runtime.call(method, element, nil, Span{})
+		if err != nil {
+			return Undefined(), err
+		}
+		text, err := runtime.toString(localized)
+		if err != nil {
+			return Undefined(), err
+		}
+		result = append(result, text...)
+	}
+	return StringUTF16(result), nil
 }
 
 func arrayAt(runtime *Runtime, receiver Value, arguments []Value) (Value, error) {
@@ -182,12 +244,12 @@ func arrayPush(runtime *Runtime, receiver Value, arguments []Value) (Value, erro
 		return Undefined(), typeError("Array.prototype.push exceeds the maximum safe integer")
 	}
 	for offset, value := range arguments {
-		if err := setProperty(receiver, StringKey(fmtInt(length+offset)), value); err != nil {
+		if err := setProperty(runtime, receiver, StringKey(fmtInt(length+offset)), value); err != nil {
 			return Undefined(), err
 		}
 	}
 	newLength := length + len(arguments)
-	if err := setProperty(receiver, StringKey("length"), Number(float64(newLength))); err != nil {
+	if err := setProperty(runtime, receiver, StringKey("length"), Number(float64(newLength))); err != nil {
 		return Undefined(), err
 	}
 	return Number(float64(newLength)), nil
@@ -206,10 +268,10 @@ func lengthOfArrayLike(runtime *Runtime, value Value) (int, error) {
 
 func (runtime *Runtime) installStringBuiltin() {
 	constructor := nativeValue(func(runtime *Runtime, _ Value, arguments []Value) (Value, error) {
-		value := argument(arguments, 0)
-		if value.IsUndefined() {
+		if len(arguments) == 0 {
 			return String(""), nil
 		}
+		value := argument(arguments, 0)
 		if value.k == KindSymbol {
 			return String("Symbol(" + value.sy.description.goString() + ")"), nil
 		}
@@ -247,9 +309,9 @@ func (runtime *Runtime) installStringBuiltin() {
 		}
 		defineBuiltin(runtime.intrinsics.stringPrototype, name, defineFunctionMetadata(nativeValue(method), name, length))
 	}
-	runtime.intrinsics.stringPrototype.properties[PropertyKey{symbol: runtime.iteratorSymbol}] = PropertyDescriptor{
-		Value: defineFunctionMetadata(nativeValue(stringValuesIterator), "[Symbol.iterator]", 0), Writable: true, Configurable: true,
-	}
+	storeProperty(runtime.intrinsics.stringPrototype, PropertyKey{symbol: runtime.iteratorSymbol}, dataProperty(
+		defineFunctionMetadata(nativeValue(stringValuesIterator), "[Symbol.iterator]", 0), true, false, true,
+	))
 	runtime.global.createMutableBinding("String", defineFunctionMetadata(constructor, "String", 1))
 }
 

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"strconv"
+	"strings"
 	"unicode/utf16"
 	"weak"
 )
@@ -127,7 +128,30 @@ type PropertyKey struct {
 	symbol *symbolValue
 }
 
-func StringKey(name string) PropertyKey { return PropertyKey{name: name} }
+func StringKey(name string) PropertyKey { return stringKeyUTF16(jsString(String(name).s)) }
+
+func stringKeyUTF16(value jsString) PropertyKey {
+	encoded := make([]byte, len(value)*2)
+	for index, codeUnit := range value {
+		encoded[index*2] = byte(codeUnit)
+		encoded[index*2+1] = byte(codeUnit >> 8)
+	}
+	return PropertyKey{name: string(encoded)}
+}
+
+func (key PropertyKey) stringValue() jsString {
+	if key.isSymbol() {
+		return nil
+	}
+	encoded := []byte(key.name)
+	codeUnits := make(jsString, len(encoded)/2)
+	for index := range codeUnits {
+		codeUnits[index] = uint16(encoded[index*2]) | uint16(encoded[index*2+1])<<8
+	}
+	return codeUnits
+}
+
+func (key PropertyKey) goString() string { return key.stringValue().goString() }
 func SymbolKey(symbol Value) (PropertyKey, error) {
 	if symbol.k != KindSymbol {
 		return PropertyKey{}, typeError("property key is not a symbol")
@@ -137,23 +161,43 @@ func SymbolKey(symbol Value) (PropertyKey, error) {
 
 func (key PropertyKey) isSymbol() bool { return key.symbol != nil }
 
-// PropertyDescriptor models a data property. Accessor descriptors can be
-// added without changing the object storage or lookup algorithms.
 type PropertyDescriptor struct {
-	Value        Value
-	Writable     bool
-	Enumerable   bool
-	Configurable bool
+	Value           Value
+	Writable        bool
+	Get             Value
+	Set             Value
+	Enumerable      bool
+	Configurable    bool
+	HasValue        bool
+	HasWritable     bool
+	HasGet          bool
+	HasSet          bool
+	HasEnumerable   bool
+	HasConfigurable bool
 }
 
 type Object struct {
-	identity   *weakIdentity
-	properties map[PropertyKey]PropertyDescriptor
-	prototype  *Object
-	array      bool
-	weakmap    *weakMapData
-	boxed      Value
-	extensible bool
+	identity        *weakIdentity
+	properties      map[PropertyKey]PropertyDescriptor
+	propertyOrder   []PropertyKey
+	prototype       *Object
+	array           bool
+	weakmap         *weakMapData
+	boxed           Value
+	extensible      bool
+	argumentsEnv    *environment
+	parameterMap    map[PropertyKey]string
+	privateElements map[*privateIdentifier]privateElement
+}
+
+type privateIdentifier struct{ description string }
+
+type privateElement struct {
+	value    Value
+	getter   Value
+	setter   Value
+	accessor bool
+	writable bool
 }
 
 func newObject(prototype *Object) *Object {
@@ -166,27 +210,48 @@ func NewArray(values ...Value) Value {
 	object := newObject(nil)
 	object.array = true
 	for index, value := range values {
-		object.properties[StringKey(strconv.Itoa(index))] = defaultProperty(value)
+		storeProperty(object, StringKey(strconv.Itoa(index)), defaultProperty(value))
 	}
-	object.properties[StringKey("length")] = PropertyDescriptor{Value: Number(float64(len(values))), Writable: true}
+	storeProperty(object, StringKey("length"), dataProperty(Number(float64(len(values))), true, false, false))
 	return Value{k: KindObject, o: object}
 }
 
 func defaultProperty(value Value) PropertyDescriptor {
-	return PropertyDescriptor{Value: value, Writable: true, Enumerable: true, Configurable: true}
+	return dataProperty(value, true, true, true)
+}
+
+func dataProperty(value Value, writable, enumerable, configurable bool) PropertyDescriptor {
+	return PropertyDescriptor{
+		Value: value, Writable: writable, Enumerable: enumerable, Configurable: configurable,
+		HasValue: true, HasWritable: true, HasEnumerable: true, HasConfigurable: true,
+	}
+}
+
+func storeProperty(object *Object, key PropertyKey, descriptor PropertyDescriptor) {
+	if _, exists := object.properties[key]; !exists {
+		object.propertyOrder = append(object.propertyOrder, key)
+	}
+	object.properties[key] = descriptor
 }
 
 type NativeFunction func(runtime *Runtime, this Value, arguments []Value) (Value, error)
 
 type function struct {
-	identity  *weakIdentity
-	object    *Object
-	call      NativeFunction
-	construct NativeFunction
-	params    []string
-	body      []stmt
-	closure   *environment
-	name      string
+	identity         *weakIdentity
+	object           *Object
+	call             NativeFunction
+	construct        NativeFunction
+	params           []string
+	body             []stmt
+	closure          *environment
+	name             string
+	strict           bool
+	homeObject       *Object
+	superConstructor Value
+	derived          bool
+	classConstructor bool
+	instanceFields   []evaluatedClassField
+	privateMethods   []evaluatedPrivateElement
 }
 
 func nativeValue(call NativeFunction) Value {
@@ -226,7 +291,22 @@ func numberToString(number float64) string {
 	case number == 0:
 		return "0"
 	default:
-		return strconv.FormatFloat(number, 'g', -1, 64)
+		absolute := math.Abs(number)
+		if absolute >= 1e-6 && absolute < 1e21 {
+			return strconv.FormatFloat(number, 'f', -1, 64)
+		}
+		formatted := strconv.FormatFloat(number, 'e', -1, 64)
+		parts := strings.SplitN(formatted, "e", 2)
+		exponent := parts[1]
+		sign := ""
+		if exponent[0] == '+' || exponent[0] == '-' {
+			sign, exponent = exponent[:1], exponent[1:]
+		}
+		exponent = strings.TrimLeft(exponent, "0")
+		if exponent == "" {
+			exponent = "0"
+		}
+		return parts[0] + "e" + sign + exponent
 	}
 }
 

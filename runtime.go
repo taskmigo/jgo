@@ -8,10 +8,11 @@ import (
 )
 
 var (
-	ErrNilProgram = errors.New("gots: nil program")
-	ErrStepLimit  = errors.New("gots: step limit exceeded")
-	ErrCallDepth  = errors.New("gots: call depth exceeded")
-	ErrCancelled  = errors.New("gots: execution cancelled")
+	ErrNilProgram  = errors.New("gots: nil program")
+	ErrStepLimit   = errors.New("gots: step limit exceeded")
+	ErrCallDepth   = errors.New("gots: call depth exceeded")
+	ErrCancelled   = errors.New("gots: execution cancelled")
+	ErrRuntimeBusy = errors.New("gots: runtime is already executing")
 )
 
 // Exception is an uncaught ECMAScript exception crossing the host boundary.
@@ -67,6 +68,7 @@ type Runtime struct {
 type Program struct {
 	source string
 	body   []stmt
+	strict bool
 }
 
 func (program *Program) Source() string {
@@ -77,10 +79,14 @@ func (program *Program) Source() string {
 }
 
 type execution struct {
-	ctx            context.Context
-	steps          uint64
-	depth, maxSeen int
-	started        time.Time
+	ctx                   context.Context
+	steps                 uint64
+	depth, maxSeen        int
+	started               time.Time
+	strict                bool
+	activeFunction        Value
+	newTarget             Value
+	classFieldInitializer bool
 }
 
 func New(config Config) *Runtime {
@@ -97,11 +103,11 @@ func New(config Config) *Runtime {
 }
 
 func (runtime *Runtime) Compile(source string) (*Program, error) {
-	body, err := parse(source)
+	parsed, err := parse(source)
 	if err != nil {
 		return nil, err
 	}
-	return &Program{source: source, body: body}, nil
+	return &Program{source: source, body: parsed.body, strict: parsed.strict}, nil
 }
 
 func (runtime *Runtime) EvaluateString(ctx context.Context, source string) (Result, error) {
@@ -116,10 +122,13 @@ func (runtime *Runtime) Evaluate(ctx context.Context, program *Program) (result 
 	if program == nil {
 		return Result{}, ErrNilProgram
 	}
+	if runtime.exec != nil {
+		return Result{}, ErrRuntimeBusy
+	}
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	execution := &execution{ctx: ctx, started: time.Now()}
+	execution := &execution{ctx: ctx, started: time.Now(), strict: program.strict}
 	runtime.exec = execution
 	defer func() {
 		result.Stats = Stats{Steps: execution.steps, MaxCallDepth: execution.maxSeen, Duration: time.Since(execution.started)}

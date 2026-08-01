@@ -2,6 +2,8 @@ package main
 
 import "encoding/xml"
 
+const baselineSchemaVersion = 2
+
 const (
 	statusPass        = "pass"
 	statusFail        = "fail"
@@ -11,10 +13,24 @@ const (
 )
 
 type manifest struct {
-	Commit      string   `json:"commit"`
-	ECMAVersion string   `json:"ecmaVersion"`
-	ReportDate  string   `json:"reportDate"`
-	Tests       []string `json:"tests"`
+	Commit             string   `json:"commit"`
+	ECMA262Commit      string   `json:"ecma262Commit"`
+	ECMAVersion        string   `json:"ecmaVersion"`
+	ReportDate         string   `json:"reportDate"`
+	CapabilityManifest string   `json:"capabilityManifest"`
+	CapabilityVersion  string   `json:"capabilityVersion"`
+	Tests              []string `json:"tests"`
+}
+
+type capabilityManifest struct {
+	SchemaVersion int                     `json:"schemaVersion"`
+	Supported     []string                `json:"supported"`
+	Unsupported   []unsupportedCapability `json:"unsupported"`
+}
+
+type unsupportedCapability struct {
+	Feature string `json:"feature"`
+	Reason  string `json:"reason"`
 }
 
 type counts struct {
@@ -27,31 +43,63 @@ type counts struct {
 }
 
 type result struct {
-	Name       string   `json:"name"`
-	Status     string   `json:"status"`
-	Reason     string   `json:"reason,omitempty"`
-	Features   []string `json:"features,omitempty"`
-	DurationMS int64    `json:"durationMs"`
+	Name              string   `json:"name"`
+	Status            string   `json:"status"`
+	Reason            string   `json:"reason,omitempty"`
+	UnsupportedReason string   `json:"unsupportedReason,omitempty"`
+	Features          []string `json:"features,omitempty"`
+}
+
+type timedResult struct {
+	CaseID     string `json:"caseId"`
+	DurationMS int64  `json:"durationMs"`
 }
 
 type report struct {
-	Commit      string            `json:"commit"`
-	ECMAVersion string            `json:"ecmaVersion"`
-	Mode        string            `json:"mode"`
-	Counts      counts            `json:"counts"`
-	ByFeature   map[string]counts `json:"byFeature"`
-	Results     []result          `json:"results"`
-	Regressions []string          `json:"regressions,omitempty"`
-	Coverage    coverage          `json:"coverage"`
+	SchemaVersion           int               `json:"schemaVersion"`
+	ECMA262Commit           string            `json:"ecma262Commit"`
+	Test262Commit           string            `json:"test262Commit"`
+	ECMAVersion             string            `json:"ecmaVersion"`
+	CapabilityVersion       string            `json:"capabilityVersion"`
+	Mode                    string            `json:"mode"`
+	SourceFileDenominator   int               `json:"sourceFileDenominator"`
+	ExpandedCaseDenominator int               `json:"expandedCaseDenominator"`
+	Counts                  counts            `json:"counts"`
+	ByFeature               map[string]counts `json:"byFeature"`
+	Results                 []result          `json:"results"`
+	Regressions             []string          `json:"regressions,omitempty"`
+	Coverage                coverage          `json:"coverage"`
 }
 
 type baselineSnapshot struct {
-	Commit      string            `json:"commit"`
-	ECMAVersion string            `json:"ecmaVersion"`
-	Mode        string            `json:"mode"`
-	Counts      counts            `json:"counts"`
-	ByFeature   map[string]counts `json:"byFeature"`
-	Coverage    coverage          `json:"coverage"`
+	SchemaVersion           int               `json:"schemaVersion"`
+	ECMA262Commit           string            `json:"ecma262Commit"`
+	Test262Commit           string            `json:"test262Commit"`
+	ECMAVersion             string            `json:"ecmaVersion"`
+	CapabilityVersion       string            `json:"capabilityVersion"`
+	Mode                    string            `json:"mode"`
+	SourceFileDenominator   int               `json:"sourceFileDenominator"`
+	ExpandedCaseDenominator int               `json:"expandedCaseDenominator"`
+	PassingCaseIDs          []string          `json:"passingCaseIds"`
+	FailingCaseIDs          []string          `json:"failingCaseIds"`
+	TimeoutCaseIDs          []string          `json:"timeoutCaseIds"`
+	UnsupportedCases        []unsupportedCase `json:"unsupportedCases"`
+	Counts                  counts            `json:"counts"`
+	ByFeature               map[string]counts `json:"byFeature"`
+	Coverage                coverage          `json:"coverage"`
+}
+
+type unsupportedCase struct {
+	CaseID string `json:"caseId"`
+	Reason string `json:"reason"`
+}
+
+type executionCase struct {
+	SourceName string
+	ID         string
+	Variant    string
+	Metadata   metadata
+	LoadError  string
 }
 
 type coverage struct {
