@@ -18,6 +18,7 @@ import (
 type manifest struct {
 	Commit      string   `json:"commit"`
 	ECMAVersion string   `json:"ecmaVersion"`
+	ReportDate  string   `json:"reportDate"`
 	Tests       []string `json:"tests"`
 }
 type counts struct {
@@ -43,6 +44,14 @@ type report struct {
 	ByFeature   map[string]counts `json:"byFeature"`
 	Results     []result          `json:"results"`
 	Regressions []string          `json:"regressions,omitempty"`
+	Coverage    coverage          `json:"coverage"`
+}
+type baselineSnapshot struct {
+	Commit      string            `json:"commit"`
+	ECMAVersion string            `json:"ecmaVersion"`
+	Mode        string            `json:"mode"`
+	Counts      counts            `json:"counts"`
+	ByFeature   map[string]counts `json:"byFeature"`
 	Coverage    coverage          `json:"coverage"`
 }
 type coverage struct {
@@ -77,17 +86,23 @@ func main() {
 	jsonOut := flag.String("json", "test262-report.json", "JSON report")
 	junitOut := flag.String("junit", "test262-report.xml", "JUnit report")
 	summary := flag.String("summary", "", "summary output (defaults to GITHUB_STEP_SUMMARY)")
+	coverageOut := flag.String("coverage", "", "write the canonical coverage report")
+	reportDate := flag.String("report-date", "", "override the manifest report date (YYYY-MM-DD)")
 	steps := flag.Uint64("steps", 100000, "steps per test")
 	timeout := flag.Duration("timeout", 2*time.Second, "timeout per test")
 	baseline := flag.String("baseline", "", "full-run baseline used to reject coverage regressions")
+	refreshBaselineFile := flag.Bool("refresh-baseline", false, "refresh -baseline after checking it for regressions")
 	flag.Parse()
+	if *refreshBaselineFile && *baseline == "" {
+		fatal(errors.New("-refresh-baseline requires -baseline"))
+	}
 	b, err := os.ReadFile(*selection)
 	fatal(err)
 	var m manifest
 	fatal(json.Unmarshal(b, &m))
-	if m.Commit == "" || m.ECMAVersion == "" {
-		fatal(errors.New("invalid selection manifest: missing commit or ecmaVersion"))
-	}
+	fatal(validateManifest(m))
+	effectiveReportDate, err := coverageReportDate(m.ReportDate, *reportDate)
+	fatal(err)
 	names := m.Tests
 	mode := "selection"
 	if *all {
@@ -125,14 +140,31 @@ func main() {
 	js.Failures = rep.Counts.Fail + rep.Counts.Timeout
 	js.Skipped = rep.Counts.Skip + rep.Counts.Unsupported
 	rep.Coverage = calculateCoverage(rep.Counts)
+	var previous *baselineSnapshot
 	if *baseline != "" {
-		rep.Regressions = compareBaseline(*baseline, rep)
+		expected, baselineErr := readBaseline(*baseline)
+		if baselineErr == nil {
+			previous = &expected
+			rep.Regressions = compareBaselineSnapshot(expected, rep)
+			if *refreshBaselineFile {
+				baselineErr = writeCanonicalJSON(*baseline, snapshot(rep))
+			}
+		}
+		if baselineErr != nil {
+			rep.Regressions = []string{"baseline: " + baselineErr.Error()}
+		}
 	}
-	writeJSON(*jsonOut, rep)
+	fatal(writeJSON(*jsonOut, rep))
 	xb, err := xml.MarshalIndent(js, "", "  ")
 	fatal(err)
 	fatal(os.WriteFile(*junitOut, append([]byte(xml.Header), xb...), 0644))
 	out := renderSummary(rep)
+	if previous != nil {
+		out = renderChangeSummary(*previous, rep)
+	}
+	if *coverageOut != "" {
+		fatal(os.WriteFile(*coverageOut, []byte(renderCoverage(rep, effectiveReportDate)), 0644))
+	}
 	dest := *summary
 	if dest == "" {
 		dest = os.Getenv("GITHUB_STEP_SUMMARY")
@@ -145,6 +177,26 @@ func main() {
 	if (*baseline == "" && rep.Counts.Fail+rep.Counts.Timeout > 0) || len(rep.Regressions) > 0 {
 		os.Exit(1)
 	}
+}
+
+func validateManifest(m manifest) error {
+	if m.Commit == "" || m.ECMAVersion == "" || m.ReportDate == "" {
+		return errors.New("invalid selection manifest: missing commit, ecmaVersion, or reportDate")
+	}
+	if _, err := time.Parse("2006-01-02", m.ReportDate); err != nil {
+		return fmt.Errorf("invalid selection manifest reportDate: %w", err)
+	}
+	return nil
+}
+
+func coverageReportDate(manifestDate, override string) (string, error) {
+	if override == "" {
+		return manifestDate, nil
+	}
+	if _, err := time.Parse("2006-01-02", override); err != nil {
+		return "", fmt.Errorf("invalid -report-date: %w", err)
+	}
+	return override, nil
 }
 
 // inferredFeature gives tests without a Test262 `features` tag a stable,
@@ -163,15 +215,27 @@ func inferredFeature(name string) string {
 	return "path:other"
 }
 
-func compareBaseline(path string, actual report) []string {
+func compareBaseline(path string, actual report) ([]string, error) {
+	expected, err := readBaseline(path)
+	if err != nil {
+		return nil, err
+	}
+	return compareBaselineSnapshot(expected, actual), nil
+}
+
+func readBaseline(path string) (baselineSnapshot, error) {
 	b, err := os.ReadFile(path)
 	if err != nil {
-		return []string{"baseline: " + err.Error()}
+		return baselineSnapshot{}, err
 	}
-	var expected report
+	var expected baselineSnapshot
 	if err := json.Unmarshal(b, &expected); err != nil {
-		return []string{"baseline: " + err.Error()}
+		return baselineSnapshot{}, err
 	}
+	return expected, nil
+}
+
+func compareBaselineSnapshot(expected baselineSnapshot, actual report) []string {
 	var problems []string
 	if expected.Commit != actual.Commit {
 		problems = append(problems, fmt.Sprintf("commit changed: expected %s, got %s", expected.Commit, actual.Commit))
@@ -202,6 +266,24 @@ func compareBaseline(path string, actual report) []string {
 		}
 	}
 	return problems
+}
+
+func refreshBaseline(path string, actual report) ([]string, error) {
+	problems, err := compareBaseline(path, actual)
+	if err != nil {
+		return nil, err
+	}
+	if err := writeCanonicalJSON(path, snapshot(actual)); err != nil {
+		return nil, err
+	}
+	return problems, nil
+}
+
+func snapshot(r report) baselineSnapshot {
+	return baselineSnapshot{
+		Commit: r.Commit, ECMAVersion: r.ECMAVersion, Mode: r.Mode,
+		Counts: r.Counts, ByFeature: r.ByFeature, Coverage: r.Coverage,
+	}
 }
 
 func discover(root string) ([]string, error) {
@@ -487,10 +569,139 @@ func renderSummary(r report) string {
 	}
 	return b.String()
 }
-func writeJSON(path string, v any) {
-	b, e := json.MarshalIndent(v, "", "  ")
-	fatal(e)
-	fatal(os.WriteFile(path, b, 0644))
+
+type countMetric struct {
+	name          string
+	lowerIsBetter bool
+	value         func(counts) int
+}
+
+var summaryCountMetrics = []countMetric{
+	{name: "Pass", value: func(c counts) int { return c.Pass }},
+	{name: "Fail", lowerIsBetter: true, value: func(c counts) int { return c.Fail }},
+	{name: "Skip", lowerIsBetter: true, value: func(c counts) int { return c.Skip }},
+	{name: "Unsupported", lowerIsBetter: true, value: func(c counts) int { return c.Unsupported }},
+	{name: "Timeout", lowerIsBetter: true, value: func(c counts) int { return c.Timeout }},
+	{name: "Total", value: func(c counts) int { return c.Total }},
+}
+
+// renderChangeSummary keeps the GitHub Step Summary focused on differences
+// from the committed baseline. Green marks improvements and red regressions.
+func renderChangeSummary(previous baselineSnapshot, current report) string {
+	rows := &strings.Builder{}
+	changed := false
+	addPercent := func(metric string, before, after float64) {
+		if before == after {
+			return
+		}
+		changed = true
+		fmt.Fprintf(rows, "| Overall | %s | %.2f%% | %.2f%% | %s |\n", metric, before, after, formatFloatChange(after-before, false))
+	}
+	addCounts := func(scope string, before, after counts) {
+		for _, metric := range summaryCountMetrics {
+			oldValue, newValue := metric.value(before), metric.value(after)
+			if oldValue == newValue {
+				continue
+			}
+			changed = true
+			fmt.Fprintf(rows, "| %s | %s | %d | %d | %s |\n", scope, metric.name, oldValue, newValue, formatIntChange(newValue-oldValue, metric.lowerIsBetter))
+		}
+	}
+
+	addPercent("Coverage", previous.Coverage.CoveragePercent, current.Coverage.CoveragePercent)
+	addPercent("Overall pass", previous.Coverage.OverallPassPercent, current.Coverage.OverallPassPercent)
+	addPercent("Pass among covered", previous.Coverage.CoveredPassPercent, current.Coverage.CoveredPassPercent)
+	addCounts("Overall", previous.Counts, current.Counts)
+
+	features := make(map[string]struct{}, len(previous.ByFeature)+len(current.ByFeature))
+	for feature := range previous.ByFeature {
+		features[feature] = struct{}{}
+	}
+	for feature := range current.ByFeature {
+		features[feature] = struct{}{}
+	}
+	keys := make([]string, 0, len(features))
+	for feature := range features {
+		keys = append(keys, feature)
+	}
+	sort.Strings(keys)
+	for _, feature := range keys {
+		addCounts(strings.ReplaceAll(feature, "|", "\\|"), previous.ByFeature[feature], current.ByFeature[feature])
+	}
+
+	if !changed {
+		return "## Test262 changes\n\n✅ No Test262 coverage changes compared with the committed baseline.\n"
+	}
+	b := &strings.Builder{}
+	fmt.Fprintln(b, "## Test262 changes")
+	fmt.Fprintln(b)
+	fmt.Fprintln(b, "Only changed metrics are shown. 🟢 improvement · 🔴 regression")
+	fmt.Fprintln(b)
+	fmt.Fprintln(b, "| Scope | Metric | Before | After | Change |")
+	fmt.Fprintln(b, "|---|---|---:|---:|---:|")
+	fmt.Fprint(b, rows.String())
+	return b.String()
+}
+
+func formatIntChange(delta int, lowerIsBetter bool) string {
+	marker := changeMarker(float64(delta), lowerIsBetter)
+	return fmt.Sprintf("%s %+.0f", marker, float64(delta))
+}
+
+func formatFloatChange(delta float64, lowerIsBetter bool) string {
+	return fmt.Sprintf("%s %+.2f pp", changeMarker(delta, lowerIsBetter), delta)
+}
+
+func changeMarker(delta float64, lowerIsBetter bool) string {
+	improved := delta > 0
+	if lowerIsBetter {
+		improved = delta < 0
+	}
+	arrow := "▲"
+	if delta < 0 {
+		arrow = "▼"
+	}
+	if improved {
+		return "🟢 " + arrow
+	}
+	return "🔴 " + arrow
+}
+
+// renderCoverage produces the repository's canonical report. Its only
+// time-varying value is supplied by the caller, so identical results and dates
+// produce byte-for-byte identical output on every machine.
+func renderCoverage(r report, reportDate string) string {
+	b := &strings.Builder{}
+	fmt.Fprintln(b, "# Test262 coverage report")
+	fmt.Fprintf(b, "\n**Report date:** %s  \n", reportDate)
+	fmt.Fprintf(b, "**Pinned Test262 commit:** `%s`  \n", r.Commit)
+	fmt.Fprintf(b, "**ECMA target:** %s\n\n", r.ECMAVersion)
+	fmt.Fprintln(b, "This report is generated from the complete pinned Test262 suite. **Test262")
+	fmt.Fprintln(b, "coverage** is the percentage of all tests that reached execution (pass, fail, or")
+	fmt.Fprintln(b, "timeout); unsupported tests are excluded. **Overall pass rate** is passes divided")
+	fmt.Fprintln(b, "by every test in the suite, including unsupported tests. These runner metrics do")
+	fmt.Fprintln(b, "not by themselves claim complete ECMAScript conformance.")
+	fmt.Fprintln(b)
+	fmt.Fprint(b, renderSummary(r))
+	return b.String()
+}
+func writeJSON(path string, v any) error {
+	b, err := json.MarshalIndent(v, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, append(b, '\n'), 0644)
+}
+func writeCanonicalJSON(path string, v any) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	var canonical any
+	if err := json.Unmarshal(b, &canonical); err != nil {
+		return err
+	}
+	return writeJSON(path, canonical)
 }
 func fatal(e error) {
 	if e != nil {

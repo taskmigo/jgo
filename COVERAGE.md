@@ -1,18 +1,16 @@
-# Full Test262 coverage report
+# Test262 coverage report
 
-Generated on 2026-08-01 with Go 1.25.1 against pinned Test262 commit
-`b363f29d3c43c626dc852744ad64a0b48a003693`:
+**Report date:** 2026-08-01  
+**Pinned Test262 commit:** `b363f29d3c43c626dc852744ad64a0b48a003693`  
+**ECMA target:** ECMAScript 2025 (ES16), plus later features present in the pinned Test262 commit
 
-```sh
-go run ./cmd/test262 -all -test262 /tmp/test262 -timeout 100ms \
-  -json test262-full.json -junit test262-full.xml \
-  -summary test262/reports/full-summary.md
-```
+This report is generated from the complete pinned Test262 suite. **Test262
+coverage** is the percentage of all tests that reached execution (pass, fail, or
+timeout); unsupported tests are excluded. **Overall pass rate** is passes divided
+by every test in the suite, including unsupported tests. These runner metrics do
+not by themselves claim complete ECMAScript conformance.
 
-The command exits non-zero without `-baseline` when unexpected failures exist.
-`unsupported` means Gots does not yet implement syntax or runtime capability a
-test requires. A `pass` includes valid negative tests, so this is runner
-coverage—not a claim of full ECMAScript feature support.
+## Test262 b363f29d3c43c626dc852744ad64a0b48a003693 (full)
 
 **ECMA target:** ECMAScript 2025 (ES16), plus later features present in the pinned Test262 commit<br>
 **Coverage:** 12.20% (6574/53869 tests reached execution)<br>
