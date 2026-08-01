@@ -32,6 +32,17 @@ Reports contain the selection denominator and separate pass, fail, skip, and
 unsupported counts. No aggregate result should be interpreted as full
 ECMAScript compatibility. Go 1.25 or later is required.
 
+To measure the entire pinned Test262 checkout, use `-all`; the command returns a
+non-zero status when it finds failures:
+
+```sh
+go run ./cmd/test262 -all -test262 /path/to/test262
+```
+
+The latest checked-in full-run feature summary is in
+`test262/reports/full-summary.md`; detailed JSON and JUnit reports are generated
+as local or CI artifacts because they contain tens of thousands of test cases.
+
 ## Roadmap
 
 Grow conformance feature-by-feature, add complete Test262 harness include and
