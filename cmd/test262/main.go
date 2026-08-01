@@ -140,12 +140,15 @@ func main() {
 	js.Failures = rep.Counts.Fail + rep.Counts.Timeout
 	js.Skipped = rep.Counts.Skip + rep.Counts.Unsupported
 	rep.Coverage = calculateCoverage(rep.Counts)
+	var previous *baselineSnapshot
 	if *baseline != "" {
-		var baselineErr error
-		if *refreshBaselineFile {
-			rep.Regressions, baselineErr = refreshBaseline(*baseline, rep)
-		} else {
-			rep.Regressions, baselineErr = compareBaseline(*baseline, rep)
+		expected, baselineErr := readBaseline(*baseline)
+		if baselineErr == nil {
+			previous = &expected
+			rep.Regressions = compareBaselineSnapshot(expected, rep)
+			if *refreshBaselineFile {
+				baselineErr = writeCanonicalJSON(*baseline, snapshot(rep))
+			}
 		}
 		if baselineErr != nil {
 			rep.Regressions = []string{"baseline: " + baselineErr.Error()}
@@ -156,6 +159,9 @@ func main() {
 	fatal(err)
 	fatal(os.WriteFile(*junitOut, append([]byte(xml.Header), xb...), 0644))
 	out := renderSummary(rep)
+	if previous != nil {
+		out = renderChangeSummary(*previous, rep)
+	}
 	if *coverageOut != "" {
 		fatal(os.WriteFile(*coverageOut, []byte(renderCoverage(rep, effectiveReportDate)), 0644))
 	}
@@ -210,14 +216,26 @@ func inferredFeature(name string) string {
 }
 
 func compareBaseline(path string, actual report) ([]string, error) {
-	b, err := os.ReadFile(path)
+	expected, err := readBaseline(path)
 	if err != nil {
 		return nil, err
 	}
+	return compareBaselineSnapshot(expected, actual), nil
+}
+
+func readBaseline(path string) (baselineSnapshot, error) {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return baselineSnapshot{}, err
+	}
 	var expected baselineSnapshot
 	if err := json.Unmarshal(b, &expected); err != nil {
-		return nil, err
+		return baselineSnapshot{}, err
 	}
+	return expected, nil
+}
+
+func compareBaselineSnapshot(expected baselineSnapshot, actual report) []string {
 	var problems []string
 	if expected.Commit != actual.Commit {
 		problems = append(problems, fmt.Sprintf("commit changed: expected %s, got %s", expected.Commit, actual.Commit))
@@ -247,7 +265,7 @@ func compareBaseline(path string, actual report) ([]string, error) {
 			problems = append(problems, fmt.Sprintf("feature regressed: %s (want pass>=%d fail<=%d unsupported<=%d timeout<=%d total=%d; got %+v)", feature, want.Pass, want.Fail, want.Unsupported, want.Timeout, want.Total, got))
 		}
 	}
-	return problems, nil
+	return problems
 }
 
 func refreshBaseline(path string, actual report) ([]string, error) {
@@ -550,6 +568,103 @@ func renderSummary(r report) string {
 		fmt.Fprintf(b, "| %s | %d | %d | %d | %d | %d |\n", k, x.Pass, x.Fail, x.Unsupported, x.Timeout, x.Total)
 	}
 	return b.String()
+}
+
+type countMetric struct {
+	name          string
+	lowerIsBetter bool
+	value         func(counts) int
+}
+
+var summaryCountMetrics = []countMetric{
+	{name: "Pass", value: func(c counts) int { return c.Pass }},
+	{name: "Fail", lowerIsBetter: true, value: func(c counts) int { return c.Fail }},
+	{name: "Skip", lowerIsBetter: true, value: func(c counts) int { return c.Skip }},
+	{name: "Unsupported", lowerIsBetter: true, value: func(c counts) int { return c.Unsupported }},
+	{name: "Timeout", lowerIsBetter: true, value: func(c counts) int { return c.Timeout }},
+	{name: "Total", value: func(c counts) int { return c.Total }},
+}
+
+// renderChangeSummary keeps the GitHub Step Summary focused on differences
+// from the committed baseline. Green marks improvements and red regressions.
+func renderChangeSummary(previous baselineSnapshot, current report) string {
+	rows := &strings.Builder{}
+	changed := false
+	addPercent := func(metric string, before, after float64) {
+		if before == after {
+			return
+		}
+		changed = true
+		fmt.Fprintf(rows, "| Overall | %s | %.2f%% | %.2f%% | %s |\n", metric, before, after, formatFloatChange(after-before, false))
+	}
+	addCounts := func(scope string, before, after counts) {
+		for _, metric := range summaryCountMetrics {
+			oldValue, newValue := metric.value(before), metric.value(after)
+			if oldValue == newValue {
+				continue
+			}
+			changed = true
+			fmt.Fprintf(rows, "| %s | %s | %d | %d | %s |\n", scope, metric.name, oldValue, newValue, formatIntChange(newValue-oldValue, metric.lowerIsBetter))
+		}
+	}
+
+	addPercent("Coverage", previous.Coverage.CoveragePercent, current.Coverage.CoveragePercent)
+	addPercent("Overall pass", previous.Coverage.OverallPassPercent, current.Coverage.OverallPassPercent)
+	addPercent("Pass among covered", previous.Coverage.CoveredPassPercent, current.Coverage.CoveredPassPercent)
+	addCounts("Overall", previous.Counts, current.Counts)
+
+	features := make(map[string]struct{}, len(previous.ByFeature)+len(current.ByFeature))
+	for feature := range previous.ByFeature {
+		features[feature] = struct{}{}
+	}
+	for feature := range current.ByFeature {
+		features[feature] = struct{}{}
+	}
+	keys := make([]string, 0, len(features))
+	for feature := range features {
+		keys = append(keys, feature)
+	}
+	sort.Strings(keys)
+	for _, feature := range keys {
+		addCounts(strings.ReplaceAll(feature, "|", "\\|"), previous.ByFeature[feature], current.ByFeature[feature])
+	}
+
+	if !changed {
+		return "## Test262 changes\n\n✅ No Test262 coverage changes compared with the committed baseline.\n"
+	}
+	b := &strings.Builder{}
+	fmt.Fprintln(b, "## Test262 changes")
+	fmt.Fprintln(b)
+	fmt.Fprintln(b, "Only changed metrics are shown. 🟢 improvement · 🔴 regression")
+	fmt.Fprintln(b)
+	fmt.Fprintln(b, "| Scope | Metric | Before | After | Change |")
+	fmt.Fprintln(b, "|---|---|---:|---:|---:|")
+	fmt.Fprint(b, rows.String())
+	return b.String()
+}
+
+func formatIntChange(delta int, lowerIsBetter bool) string {
+	marker := changeMarker(float64(delta), lowerIsBetter)
+	return fmt.Sprintf("%s %+.0f", marker, float64(delta))
+}
+
+func formatFloatChange(delta float64, lowerIsBetter bool) string {
+	return fmt.Sprintf("%s %+.2f pp", changeMarker(delta, lowerIsBetter), delta)
+}
+
+func changeMarker(delta float64, lowerIsBetter bool) string {
+	improved := delta > 0
+	if lowerIsBetter {
+		improved = delta < 0
+	}
+	arrow := "▲"
+	if delta < 0 {
+		arrow = "▼"
+	}
+	if improved {
+		return "🟢 " + arrow
+	}
+	return "🔴 " + arrow
 }
 
 // renderCoverage produces the repository's canonical report. Its only

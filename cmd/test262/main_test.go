@@ -57,6 +57,51 @@ not by themselves claim complete ECMAScript conformance.
 	}
 }
 
+func TestRenderChangeSummaryShowsOnlyChanges(t *testing.T) {
+	previous := baselineSnapshot{
+		Counts:    counts{Pass: 10, Fail: 2, Unsupported: 8, Total: 20},
+		ByFeature: map[string]counts{"a": {Pass: 5, Fail: 1, Total: 6}, "b": {Pass: 3, Total: 3}, "unchanged": {Pass: 1, Total: 1}},
+	}
+	previous.Coverage = calculateCoverage(previous.Counts)
+	current := report{
+		Counts:    counts{Pass: 11, Fail: 1, Unsupported: 8, Total: 20},
+		ByFeature: map[string]counts{"a": {Pass: 6, Total: 6}, "b": {Pass: 2, Fail: 1, Total: 3}, "unchanged": {Pass: 1, Total: 1}},
+	}
+	current.Coverage = calculateCoverage(current.Counts)
+
+	want := `## Test262 changes
+
+Only changed metrics are shown. 🟢 improvement · 🔴 regression
+
+| Scope | Metric | Before | After | Change |
+|---|---|---:|---:|---:|
+| Overall | Overall pass | 50.00% | 55.00% | 🟢 ▲ +5.00 pp |
+| Overall | Pass among covered | 83.33% | 91.67% | 🟢 ▲ +8.33 pp |
+| Overall | Pass | 10 | 11 | 🟢 ▲ +1 |
+| Overall | Fail | 2 | 1 | 🟢 ▼ -1 |
+| a | Pass | 5 | 6 | 🟢 ▲ +1 |
+| a | Fail | 1 | 0 | 🟢 ▼ -1 |
+| b | Pass | 3 | 2 | 🔴 ▼ -1 |
+| b | Fail | 0 | 1 | 🔴 ▲ +1 |
+`
+	if got := renderChangeSummary(previous, current); got != want {
+		t.Fatalf("renderChangeSummary() mismatch\n--- got ---\n%s\n--- want ---\n%s", got, want)
+	}
+}
+
+func TestRenderChangeSummaryWhenNothingChanged(t *testing.T) {
+	previous := baselineSnapshot{
+		Counts:    counts{Pass: 1, Total: 1},
+		ByFeature: map[string]counts{"a": {Pass: 1, Total: 1}},
+	}
+	previous.Coverage = calculateCoverage(previous.Counts)
+	current := report{Counts: previous.Counts, ByFeature: previous.ByFeature, Coverage: previous.Coverage}
+	want := "## Test262 changes\n\n✅ No Test262 coverage changes compared with the committed baseline.\n"
+	if got := renderChangeSummary(previous, current); got != want {
+		t.Fatalf("renderChangeSummary() = %q, want %q", got, want)
+	}
+}
+
 func TestValidateManifestReportDate(t *testing.T) {
 	valid := manifest{Commit: "abc", ECMAVersion: "ECMAScript 2025", ReportDate: "2026-08-01"}
 	if err := validateManifest(valid); err != nil {
