@@ -2,85 +2,138 @@ package gots
 
 import "runtime"
 
-func (r *Runtime) makeFunction(expression *functionExpr, closure *environment) Value {
-	return Value{k: KindFunction, f: &function{
+func (interpreter *Runtime) makeFunction(expression *functionExpr, closure *environment) Value {
+	functionValue := Value{k: KindFunction, f: &function{
 		identity: newIdentity(),
-		props:    map[string]Value{},
+		object:   newObject(nil),
 		params:   expression.params,
 		body:     expression.body,
 		closure:  closure,
 		name:     expression.name,
 	}}
+	functionValue.f.call = func(runtime *Runtime, this Value, arguments []Value) (Value, error) {
+		return runtime.callECMAScriptFunction(functionValue, this, arguments)
+	}
+	functionValue.f.construct = func(runtime *Runtime, _ Value, arguments []Value) (Value, error) {
+		instance := runtime.newOrdinaryObject()
+		result, err := runtime.callECMAScriptFunction(functionValue, instance, arguments)
+		if err != nil {
+			return Undefined(), err
+		}
+		if objectRecord(result) != nil {
+			return result, nil
+		}
+		return instance, nil
+	}
+	return functionValue
 }
 
-func (r *Runtime) evalCall(expression *callExpr, env *environment) (Value, error) {
-	this := Undefined()
-	callee, err := r.eval(expression.callee, env)
+func (interpreter *Runtime) evalCall(expression *callExpr, environment *environment) (Value, error) {
+	reference, isReference, err := interpreter.evalCallTarget(expression.callee, environment)
 	if err != nil {
 		return Undefined(), err
 	}
-	if member, ok := expression.callee.(*memberExpr); ok {
-		this, err = r.eval(member.object, env)
-		if err != nil {
-			return Undefined(), err
-		}
+	callee := reference.base
+	thisValue := Undefined()
+	if isReference {
+		callee, err = reference.getValue()
+		thisValue = reference.thisValue()
 	}
-	if message := callValidationMessage(callee, expression.construct); message != "" {
-		return Undefined(), r.err(expression.span(), message, nil)
-	}
-
-	args := make([]Value, len(expression.args))
-	for index, argument := range expression.args {
-		args[index], err = r.eval(argument, env)
-		if err != nil {
-			return Undefined(), err
-		}
-	}
-	return r.call(callee, this, args, expression.span())
-}
-
-func callValidationMessage(callee Value, construct bool) string {
-	if callee.k != KindFunction {
-		return "value is not callable"
-	}
-	if callee.f.constructOnly && !construct {
-		return "constructor requires new"
-	}
-	if callee.f.noConstruct && construct {
-		return "function is not a constructor"
-	}
-	return ""
-}
-
-func (r *Runtime) call(value, this Value, args []Value, span Span) (Value, error) {
-	function := value.f
-	r.exec.depth++
-	defer func() { r.exec.depth-- }()
-	if r.exec.depth > r.exec.maxSeen {
-		r.exec.maxSeen = r.exec.depth
-	}
-	if r.maxDepth > 0 && r.exec.depth > r.maxDepth {
-		return Undefined(), r.err(span, ErrCallDepth.Error(), ErrCallDepth)
-	}
-	if err := r.checkpoint(span); err != nil {
+	if err != nil {
 		return Undefined(), err
 	}
-	if function.native != nil {
-		return function.native(r, this, args)
-	}
 
-	env := newEnvironment(function.closure)
+	arguments := make([]Value, len(expression.args))
+	for index, argument := range expression.args {
+		arguments[index], err = interpreter.eval(argument, environment)
+		if err != nil {
+			return Undefined(), err
+		}
+	}
+	if expression.construct {
+		if callee.k != KindFunction || callee.f.construct == nil {
+			return Undefined(), typeError("value is not a constructor")
+		}
+		return interpreter.construct(callee, arguments, expression.span())
+	}
+	if callee.k != KindFunction || callee.f.call == nil {
+		return Undefined(), typeError("value is not callable")
+	}
+	return interpreter.call(callee, thisValue, arguments, expression.span())
+}
+
+func (interpreter *Runtime) evalCallTarget(expression expr, environment *environment) (reference, bool, error) {
+	switch expression.(type) {
+	case *identExpr, *memberExpr:
+		result, err := interpreter.evalReference(expression, environment)
+		return result, true, err
+	default:
+		value, err := interpreter.eval(expression, environment)
+		return reference{base: value}, false, err
+	}
+}
+
+func (interpreter *Runtime) call(callable, this Value, arguments []Value, span Span) (Value, error) {
+	return interpreter.invoke(callable, this, arguments, span, false)
+}
+
+func (interpreter *Runtime) construct(constructor Value, arguments []Value, span Span) (Value, error) {
+	return interpreter.invoke(constructor, Undefined(), arguments, span, true)
+}
+
+func (interpreter *Runtime) invoke(functionValue, this Value, arguments []Value, span Span, construct bool) (Value, error) {
+	execution := interpreter.exec
+	execution.depth++
+	defer func() { execution.depth-- }()
+	if execution.depth > execution.maxSeen {
+		execution.maxSeen = execution.depth
+	}
+	if interpreter.config.MaxCallDepth > 0 && execution.depth > interpreter.config.MaxCallDepth {
+		return Undefined(), fmtExecutionError(ErrCallDepth, span)
+	}
+	if err := interpreter.checkpoint(span); err != nil {
+		return Undefined(), err
+	}
+	call := functionValue.f.call
+	if construct {
+		call = functionValue.f.construct
+	}
+	if call == nil {
+		if construct {
+			return Undefined(), typeError("value is not a constructor")
+		}
+		return Undefined(), typeError("value is not callable")
+	}
+	value, err := call(interpreter, this, arguments)
+	runtime.KeepAlive(functionValue.f.identity)
+	return value, err
+}
+
+func (interpreter *Runtime) callECMAScriptFunction(functionValue, _ Value, arguments []Value) (Value, error) {
+	function := functionValue.f
+	environment := newEnvironment(function.closure)
 	for index, parameter := range function.params {
 		argument := Undefined()
-		if index < len(args) {
-			argument = args[index]
+		if index < len(arguments) {
+			argument = arguments[index]
 		}
-		env.define(parameter, argument, false)
+		environment.createMutableBinding(parameter, argument)
 	}
-	if function.name != "" {
-		env.define(function.name, Value{k: KindFunction, f: function}, true)
+	if function.name != "" && !environment.hasOwnBinding(function.name) {
+		environment.bindings[function.name] = binding{value: functionValue, initialized: true}
 	}
-	result, _, err := r.evalStatements(function.body, env)
-	runtime.KeepAlive(function.identity)
-	return result, err
+	if err := interpreter.instantiateDeclarations(function.body, environment); err != nil {
+		return Undefined(), &Exception{Name: "SyntaxError", Message: err.Error()}
+	}
+	result := interpreter.evalStatements(function.body, environment)
+	if result.err != nil {
+		return Undefined(), result.err
+	}
+	if result.kind == completionThrow {
+		return Undefined(), result.exception()
+	}
+	if result.kind == completionReturn {
+		return result.value, nil
+	}
+	return Undefined(), nil
 }

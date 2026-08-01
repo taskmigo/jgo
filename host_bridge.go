@@ -5,54 +5,73 @@ import (
 	"reflect"
 )
 
-func (r *Runtime) fromGo(value any) (Value, error) {
-	if value == nil {
-		return Null(), nil
-	}
-	if runtimeValue, ok := value.(Value); ok {
-		return runtimeValue, nil
-	}
-	if nativeFunction, ok := value.(NativeFunction); ok {
-		return nativeValue(nativeFunction), nil
-	}
-
-	reflectedValue := reflect.ValueOf(value)
-	if reflectedValue.Kind() == reflect.Func {
-		return nativeValue(reflectFunction(reflectedValue)), nil
-	}
+func (runtime *Runtime) fromGo(value any) (Value, error) {
 	switch converted := value.(type) {
+	case nil:
+		return Null(), nil
+	case Value:
+		return converted, nil
+	case NativeFunction:
+		return nativeValue(converted), nil
 	case string:
 		return String(converted), nil
 	case bool:
 		return Boolean(converted), nil
 	case int:
 		return Number(float64(converted)), nil
+	case int8:
+		return Number(float64(converted)), nil
+	case int16:
+		return Number(float64(converted)), nil
+	case int32:
+		return Number(float64(converted)), nil
 	case int64:
+		return Number(float64(converted)), nil
+	case uint:
+		return Number(float64(converted)), nil
+	case uint8:
+		return Number(float64(converted)), nil
+	case uint16:
+		return Number(float64(converted)), nil
+	case uint32:
+		return Number(float64(converted)), nil
+	case uint64:
+		return Number(float64(converted)), nil
+	case float32:
 		return Number(float64(converted)), nil
 	case float64:
 		return Number(converted), nil
-	default:
-		return Undefined(), fmt.Errorf("unsupported Go value %T", value)
+	case []Value:
+		return runtime.newArray(converted...), nil
+	case map[string]Value:
+		object := runtime.newOrdinaryObject()
+		for name, propertyValue := range converted {
+			_ = defineProperty(object, StringKey(name), defaultProperty(propertyValue))
+		}
+		return object, nil
 	}
+
+	reflected := reflect.ValueOf(value)
+	if reflected.IsValid() && reflected.Kind() == reflect.Func {
+		return nativeValue(reflectFunction(reflected)), nil
+	}
+	return Undefined(), fmt.Errorf("unsupported Go value %T", value)
 }
 
 func reflectFunction(function reflect.Value) NativeFunction {
-	return func(_ *Runtime, _ Value, args []Value) (Value, error) {
+	return func(_ *Runtime, _ Value, arguments []Value) (Value, error) {
 		functionType := function.Type()
-		if !validArgumentCount(functionType, len(args)) {
-			return Undefined(), &RuntimeError{Message: "invalid host function argument count"}
+		if !validArgumentCount(functionType, len(arguments)) {
+			return Undefined(), typeError("invalid host function argument count")
 		}
-
-		inputs := make([]reflect.Value, len(args))
-		for index, argument := range args {
-			parameterType := reflectedParameterType(functionType, index)
-			converted, err := toReflectedValue(argument, parameterType)
+		inputs := make([]reflect.Value, len(arguments))
+		for index, argument := range arguments {
+			converted, err := toReflectedValue(argument, reflectedParameterType(functionType, index))
 			if err != nil {
 				return Undefined(), err
 			}
 			inputs[index] = converted
 		}
-
 		outputs := function.Call(inputs)
 		if len(outputs) == 0 {
 			return Undefined(), nil
@@ -69,27 +88,27 @@ func validArgumentCount(functionType reflect.Type, count int) bool {
 }
 
 func reflectedParameterType(functionType reflect.Type, index int) reflect.Type {
-	// Preserve the bridge's existing failure mode when callers pass more
-	// variadic arguments than the reflected function has declared inputs.
-	parameterType := functionType.In(index)
 	if functionType.IsVariadic() && index >= functionType.NumIn()-1 {
 		return functionType.In(functionType.NumIn() - 1).Elem()
 	}
-	return parameterType
+	return functionType.In(index)
 }
 
 func toReflectedValue(value Value, target reflect.Type) (reflect.Value, error) {
 	switch target.Kind() {
 	case reflect.String:
-		return reflect.ValueOf(value.String()).Convert(target), nil
+		converted, err := value.ToString()
+		return reflect.ValueOf(converted).Convert(target), err
 	case reflect.Float64:
-		return reflect.ValueOf(number(value)).Convert(target), nil
+		converted, err := value.ToNumber()
+		return reflect.ValueOf(converted).Convert(target), err
 	case reflect.Int:
-		return reflect.ValueOf(int(number(value))).Convert(target), nil
+		converted, err := value.ToNumber()
+		return reflect.ValueOf(int(converted)).Convert(target), err
 	case reflect.Bool:
-		return reflect.ValueOf(truthy(value)).Convert(target), nil
+		return reflect.ValueOf(value.ToBoolean()).Convert(target), nil
 	default:
-		return reflect.Value{}, &RuntimeError{Message: "unsupported host argument type"}
+		return reflect.Value{}, typeError("unsupported host argument type")
 	}
 }
 
@@ -106,6 +125,6 @@ func fromReflectedValue(value reflect.Value) (Value, error) {
 	case Value:
 		return converted, nil
 	default:
-		return Undefined(), &RuntimeError{Message: "unsupported host return type"}
+		return Undefined(), typeError("unsupported host return type")
 	}
 }

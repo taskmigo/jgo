@@ -22,9 +22,10 @@ Initial standard-library coverage includes `Array.from`, `Array.of`, array/strin
 their incomplete edge-case and dependency coverage.
 
 ```go
-r := gots.New(gots.WithMaxSteps(10_000))
+r := gots.New(gots.Config{MaxSteps: 10_000})
 p, _ := r.Compile(`function twice(x) { return x * 2; } twice(21)`)
-value, err := r.Run(p)
+result, err := r.Evaluate(context.Background(), p)
+fmt.Println(result.Value.Inspect(), result.Stats.Steps)
 ```
 
 Use `go run ./cmd/gots -e '1 + 2'`, pass a file, or pipe source on stdin.
@@ -45,7 +46,8 @@ Reports contain the selection denominator and separate pass, fail, skip, and
 unsupported counts. No aggregate result should be interpreted as full
 ECMAScript compatibility. Go 1.25 or later is required.
 
-Every report identifies the ECMA target and pinned Test262 commit, and shows
+Every report identifies the ECMAScript 2027 draft snapshot dated 2026-08-01
+and the pinned Test262 commit, and shows
 three distinct Test262 percentages: execution coverage (not unsupported), the
 overall pass rate over the full denominator, and the pass rate among executed
 tests. These are Test262 runner metrics, not ECMAScript specification coverage.

@@ -15,7 +15,7 @@ func TestParserErrorLocations(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			_, err := New().Compile(test.source)
+			_, err := New(Config{}).Compile(test.source)
 			syntaxError, ok := err.(*SyntaxError)
 			if !ok {
 				t.Fatalf("error = %T %v, want *SyntaxError", err, err)

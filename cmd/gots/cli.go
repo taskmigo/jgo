@@ -33,19 +33,19 @@ func runCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, err)
 		return 1
 	}
-	runtime := gots.New(gots.WithMaxSteps(config.maxSteps), gots.WithMaxCallDepth(config.maxCallDepth))
+	runtime := gots.New(gots.Config{MaxSteps: config.maxSteps, MaxCallDepth: config.maxCallDepth})
 	ctx := context.Background()
 	var cancel context.CancelFunc
 	if config.timeout > 0 {
 		ctx, cancel = context.WithTimeout(ctx, config.timeout)
 		defer cancel()
 	}
-	value, err := runtime.RunStringContext(ctx, string(source))
+	result, err := runtime.EvaluateString(ctx, string(source))
 	if err != nil {
 		fmt.Fprintln(stderr, err)
 		return 1
 	}
-	fmt.Fprintln(stdout, value.String())
+	fmt.Fprintln(stdout, result.Value.Inspect())
 	return 0
 }
 

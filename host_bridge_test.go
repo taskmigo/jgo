@@ -1,32 +1,32 @@
 package gots
 
 import (
+	"context"
 	"errors"
-	"strings"
 	"testing"
 )
 
 func TestReflectedHostFunctions(t *testing.T) {
-	runtime := New()
-	if err := runtime.Set("join", func(prefix string, values ...int) string {
-		return prefix + Number(float64(values[0])).String()
+	runtime := New(Config{})
+	if err := runtime.Define("join", func(prefix string, values ...int) string {
+		return prefix + Number(float64(values[0])).Inspect()
 	}); err != nil {
 		t.Fatal(err)
 	}
-	value, err := runtime.RunString(`join("value=", 2)`)
-	if err != nil || value.String() != "value=2" {
-		t.Fatalf("value=%q error=%v", value.String(), err)
+	result, err := runtime.EvaluateString(context.Background(), `join("value=", 2)`)
+	if err != nil || result.Value.Inspect() != "value=2" {
+		t.Fatalf("value=%q error=%v", result.Value.Inspect(), err)
 	}
-	if _, err := runtime.RunString(`join("sum=", 2, 3)`); err == nil || !strings.Contains(err.Error(), "host panic") {
-		t.Fatalf("unexpected extra variadic argument behavior: %v", err)
+	if result, err := runtime.EvaluateString(context.Background(), `join("sum=", 2, 3)`); err != nil || result.Value.Inspect() != "sum=2" {
+		t.Fatalf("unexpected variadic call result=%v error=%v", result.Value, err)
 	}
 
-	if err := runtime.Set("unsupported", func(complex64) {}); err != nil {
+	if err := runtime.Define("unsupported", func(complex64) {}); err != nil {
 		t.Fatal(err)
 	}
-	_, err = runtime.RunString(`unsupported(1)`)
-	var runtimeError *RuntimeError
-	if !errors.As(err, &runtimeError) || runtimeError.Message != "unsupported host argument type" {
+	_, err = runtime.EvaluateString(context.Background(), `unsupported(1)`)
+	var exception *Exception
+	if !errors.As(err, &exception) || exception.Message != "unsupported host argument type" {
 		t.Fatalf("unexpected host bridge error: %v", err)
 	}
 }

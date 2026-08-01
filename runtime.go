@@ -9,30 +9,33 @@ import (
 
 var (
 	ErrNilProgram = errors.New("gots: nil program")
-	ErrRuntime    = errors.New("gots: runtime error")
 	ErrStepLimit  = errors.New("gots: step limit exceeded")
 	ErrCallDepth  = errors.New("gots: call depth exceeded")
 	ErrCancelled  = errors.New("gots: execution cancelled")
 )
 
-type RuntimeError struct {
+// Exception is an uncaught ECMAScript exception crossing the host boundary.
+type Exception struct {
+	Name    string
 	Message string
+	Value   Value
 	Span    Span
-	Cause   error
 }
 
-func (e *RuntimeError) Error() string {
-	if e.Span.Start.Line > 0 {
-		return fmt.Sprintf("runtime error at %d:%d: %s", e.Span.Start.Line, e.Span.Start.Column, e.Message)
+func (exception *Exception) Error() string {
+	message := exception.Name
+	if exception.Message != "" {
+		message += ": " + exception.Message
 	}
-	return "runtime error: " + e.Message
+	if exception.Span.Start.Line > 0 {
+		return fmt.Sprintf("%s at %d:%d", message, exception.Span.Start.Line, exception.Span.Start.Column)
+	}
+	return message
 }
 
-func (e *RuntimeError) Unwrap() error {
-	if e.Cause != nil {
-		return e.Cause
-	}
-	return ErrRuntime
+func typeError(message string) error { return &Exception{Name: "TypeError", Message: message} }
+func referenceError(message string) error {
+	return &Exception{Name: "ReferenceError", Message: message}
 }
 
 type Stats struct {
@@ -41,17 +44,23 @@ type Stats struct {
 	Duration     time.Duration
 }
 
-type Option func(*Runtime)
+type Result struct {
+	Value Value
+	Stats Stats
+}
 
-func WithMaxSteps(n uint64) Option  { return func(r *Runtime) { r.maxSteps = n } }
-func WithMaxCallDepth(n int) Option { return func(r *Runtime) { r.maxDepth = n } }
+type Config struct {
+	MaxSteps     uint64
+	MaxCallDepth int
+}
 
 type Runtime struct {
-	global   *environment
-	maxSteps uint64
-	maxDepth int
-	exec     *execution
-	last     Stats
+	global         *environment
+	config         Config
+	exec           *execution
+	symbols        map[string]*symbolValue
+	iteratorSymbol *symbolValue
+	intrinsics     intrinsics
 }
 
 type Program struct {
@@ -59,11 +68,11 @@ type Program struct {
 	body   []stmt
 }
 
-func (p *Program) Source() string {
-	if p == nil {
+func (program *Program) Source() string {
+	if program == nil {
 		return ""
 	}
-	return p.source
+	return program.source
 }
 
 type execution struct {
@@ -73,16 +82,20 @@ type execution struct {
 	started        time.Time
 }
 
-func New(options ...Option) *Runtime {
-	instance := &Runtime{global: newEnvironment(nil), maxDepth: 256}
-	for _, option := range options {
-		option(instance)
+func New(config Config) *Runtime {
+	if config.MaxCallDepth == 0 {
+		config.MaxCallDepth = 256
 	}
-	instance.installGlobalBuiltins()
-	return instance
+	runtime := &Runtime{
+		global:  newEnvironment(nil),
+		config:  config,
+		symbols: make(map[string]*symbolValue),
+	}
+	runtime.installGlobalBuiltins()
+	return runtime
 }
 
-func (r *Runtime) Compile(source string) (*Program, error) {
+func (runtime *Runtime) Compile(source string) (*Program, error) {
 	body, err := parse(source)
 	if err != nil {
 		return nil, err
@@ -90,75 +103,84 @@ func (r *Runtime) Compile(source string) (*Program, error) {
 	return &Program{source: source, body: body}, nil
 }
 
-func (r *Runtime) Run(program *Program) (Value, error) {
-	return r.RunContext(context.Background(), program)
-}
-
-func (r *Runtime) RunString(source string) (Value, error) {
-	return r.RunStringContext(context.Background(), source)
-}
-
-func (r *Runtime) RunStringContext(ctx context.Context, source string) (Value, error) {
-	program, err := r.Compile(source)
+func (runtime *Runtime) EvaluateString(ctx context.Context, source string) (Result, error) {
+	program, err := runtime.Compile(source)
 	if err != nil {
-		return Undefined(), err
+		return Result{}, err
 	}
-	return r.RunContext(ctx, program)
+	return runtime.Evaluate(ctx, program)
 }
 
-func (r *Runtime) RunContext(ctx context.Context, program *Program) (result Value, err error) {
+func (runtime *Runtime) Evaluate(ctx context.Context, program *Program) (result Result, err error) {
 	if program == nil {
-		return Undefined(), ErrNilProgram
+		return Result{}, ErrNilProgram
 	}
 	if ctx == nil {
 		ctx = context.Background()
 	}
 	execution := &execution{ctx: ctx, started: time.Now()}
-	r.exec = execution
+	runtime.exec = execution
 	defer func() {
-		r.last = Stats{execution.steps, execution.maxSeen, time.Since(execution.started)}
-		r.exec = nil
+		result.Stats = Stats{Steps: execution.steps, MaxCallDepth: execution.maxSeen, Duration: time.Since(execution.started)}
+		runtime.exec = nil
 		if recovered := recover(); recovered != nil {
-			err = &RuntimeError{Message: fmt.Sprintf("host panic: %v", recovered)}
-			result = Undefined()
+			result.Value = Undefined()
+			err = fmt.Errorf("host panic: %v", recovered)
 		}
 	}()
-	result, _, err = r.evalStatements(program.body, r.global)
-	return result, err
+
+	if declarationError := runtime.instantiateDeclarations(program.body, runtime.global); declarationError != nil {
+		return result, &Exception{Name: "SyntaxError", Message: declarationError.Error()}
+	}
+	completion := runtime.evalStatements(program.body, runtime.global)
+	if completion.err != nil {
+		return result, completion.err
+	}
+	if completion.kind == completionThrow {
+		return result, completion.exception()
+	}
+	result.Value = completion.value
+	return result, nil
 }
 
-func (r *Runtime) LastStats() Stats { return r.last }
-
-func (r *Runtime) Set(name string, value any) error {
-	runtimeValue, err := r.fromGo(value)
+func (runtime *Runtime) Define(name string, value any) error {
+	runtimeValue, err := runtime.fromGo(value)
 	if err != nil {
 		return err
 	}
-	if _, exists := r.global.values[name]; exists {
-		return r.global.set(name, runtimeValue)
+	if runtime.global.hasOwnBinding(name) {
+		return runtime.global.setMutableBinding(name, runtimeValue)
 	}
-	r.global.define(name, runtimeValue, false)
+	runtime.global.createMutableBinding(name, runtimeValue)
 	return nil
 }
 
-func (r *Runtime) Get(name string) Value {
-	value, _ := r.global.get(name)
-	return value
+func (runtime *Runtime) Lookup(name string) (Value, bool) {
+	value, err := runtime.global.getBindingValue(name)
+	return value, err == nil
 }
 
-// Call invokes a JavaScript or native function from host bridge code.
-func (r *Runtime) Call(function, this Value, args ...Value) (Value, error) {
-	if function.k != KindFunction {
-		return Undefined(), &RuntimeError{Message: "value is not callable"}
+func (runtime *Runtime) Call(ctx context.Context, callable, this Value, arguments ...Value) (result Result, err error) {
+	if callable.k != KindFunction || callable.f.call == nil {
+		return Result{}, typeError("value is not callable")
 	}
-	if r.exec != nil {
-		return r.call(function, this, args, Span{})
+	if runtime.exec != nil {
+		value, err := runtime.call(callable, this, arguments, Span{})
+		return Result{Value: value}, err
 	}
-	execution := &execution{ctx: context.Background(), started: time.Now()}
-	r.exec = execution
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	execution := &execution{ctx: ctx, started: time.Now()}
+	runtime.exec = execution
 	defer func() {
-		r.last = Stats{execution.steps, execution.maxSeen, time.Since(execution.started)}
-		r.exec = nil
+		result.Stats = Stats{Steps: execution.steps, MaxCallDepth: execution.maxSeen, Duration: time.Since(execution.started)}
+		runtime.exec = nil
+		if recovered := recover(); recovered != nil {
+			result.Value = Undefined()
+			err = fmt.Errorf("host panic: %v", recovered)
+		}
 	}()
-	return r.call(function, this, args, Span{})
+	result.Value, err = runtime.call(callable, this, arguments, Span{})
+	return result, err
 }

@@ -5,9 +5,11 @@ import "fmt"
 type Position struct{ Offset, Line, Column int }
 type Span struct{ Start, End Position }
 type Token struct {
-	Type    TokenType
-	Literal string
-	Span    Span
+	Type        TokenType
+	Literal     string
+	Span        Span
+	stringValue *jsString
+	numberValue *float64
 }
 type TokenType string
 

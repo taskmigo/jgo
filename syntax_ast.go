@@ -112,9 +112,9 @@ func (*exprStmt) stmtNode() {}
 
 type varStmt struct {
 	base
-	name     string
-	value    expr
-	constant bool
+	name        string
+	value       expr
+	declaration TokenType
 }
 
 func (*varStmt) stmtNode() {}

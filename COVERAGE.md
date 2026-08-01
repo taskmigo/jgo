@@ -2,7 +2,7 @@
 
 **Report date:** 2026-08-01  
 **Pinned Test262 commit:** `b363f29d3c43c626dc852744ad64a0b48a003693`  
-**ECMA target:** ECMAScript 2025 (ES16), plus later features present in the pinned Test262 commit
+**ECMA target:** ECMAScript 2027 draft snapshot 2026-08-01
 
 This report is generated from the complete pinned Test262 suite. **Test262
 execution coverage** is the percentage of tests that reached execution (pass,
@@ -12,14 +12,14 @@ runner metrics do not by themselves claim complete ECMAScript conformance.
 
 ## Test262 b363f29d3c43c626dc852744ad64a0b48a003693 (full)
 
-**ECMA target:** ECMAScript 2025 (ES16), plus later features present in the pinned Test262 commit<br>
-**Test262 execution coverage:** 12.24% (6591/53869 tests reached execution)<br>
-**Test262 overall pass rate:** 9.55% (5147/53869)<br>
-**Pass rate among executed tests:** 78.09% (5147/6591)
+**ECMA target:** ECMAScript 2027 draft snapshot 2026-08-01<br>
+**Test262 execution coverage:** 13.12% (7068/53869 tests reached execution)<br>
+**Test262 overall pass rate:** 10.44% (5626/53869)<br>
+**Pass rate among executed tests:** 79.60% (5626/7068)
 
 | pass | fail | skip | unsupported | timeout | total |
 |---:|---:|---:|---:|---:|---:|
-| 5147 | 1442 | 0 | 47278 | 2 | 53869 |
+| 5626 | 1440 | 0 | 46801 | 2 | 53869 |
 
 ### By feature
 
@@ -27,16 +27,16 @@ runner metrics do not by themselves claim complete ECMAScript conformance.
 |---|---:|---:|---:|---:|---:|
 | AggregateError | 0 | 0 | 31 | 0 | 31 |
 | Array.fromAsync | 0 | 0 | 95 | 0 | 95 |
-| Array.prototype.at | 0 | 2 | 10 | 0 | 12 |
-| Array.prototype.flat | 0 | 2 | 13 | 0 | 15 |
-| Array.prototype.flatMap | 0 | 4 | 17 | 0 | 21 |
-| Array.prototype.includes | 6 | 6 | 57 | 0 | 69 |
+| Array.prototype.at | 0 | 0 | 12 | 0 | 12 |
+| Array.prototype.flat | 0 | 0 | 15 | 0 | 15 |
+| Array.prototype.flatMap | 0 | 0 | 21 | 0 | 21 |
+| Array.prototype.includes | 11 | 0 | 58 | 0 | 69 |
 | Array.prototype.values | 0 | 0 | 4 | 0 | 4 |
 | ArrayBuffer | 2 | 0 | 276 | 0 | 278 |
 | Atomics | 6 | 0 | 380 | 0 | 386 |
 | Atomics.pause | 0 | 0 | 5 | 0 | 5 |
 | Atomics.waitAsync | 0 | 0 | 101 | 0 | 101 |
-| BigInt | 7 | 42 | 1452 | 0 | 1501 |
+| BigInt | 40 | 5 | 1456 | 0 | 1501 |
 | DataView | 0 | 0 | 193 | 0 | 193 |
 | DataView.prototype.getFloat32 | 0 | 0 | 7 | 0 | 7 |
 | DataView.prototype.getFloat64 | 0 | 0 | 5 | 0 | 5 |
@@ -76,16 +76,16 @@ runner metrics do not by themselves claim complete ECMAScript conformance.
 | Map | 7 | 0 | 33 | 0 | 40 |
 | Math.sumPrecise | 0 | 0 | 10 | 0 | 10 |
 | Object.fromEntries | 0 | 2 | 23 | 0 | 25 |
-| Object.hasOwn | 5 | 2 | 55 | 0 | 62 |
+| Object.hasOwn | 48 | 0 | 14 | 0 | 62 |
 | Object.is | 2 | 0 | 0 | 0 | 2 |
 | Promise | 1 | 0 | 3 | 0 | 4 |
 | Promise.allSettled | 2 | 0 | 100 | 0 | 102 |
 | Promise.any | 1 | 0 | 91 | 0 | 92 |
 | Promise.prototype.finally | 1 | 0 | 28 | 0 | 29 |
 | Proxy | 14 | 1 | 464 | 0 | 479 |
-| Reflect | 27 | 1 | 450 | 0 | 478 |
-| Reflect.construct | 3 | 1 | 700 | 0 | 704 |
-| Reflect.set | 2 | 1 | 43 | 0 | 46 |
+| Reflect | 27 | 0 | 451 | 0 | 478 |
+| Reflect.construct | 6 | 6 | 692 | 0 | 704 |
+| Reflect.set | 2 | 0 | 44 | 0 | 46 |
 | Reflect.setPrototypeOf | 4 | 0 | 19 | 0 | 23 |
 | RegExp.escape | 0 | 0 | 21 | 0 | 21 |
 | Set | 18 | 0 | 20 | 0 | 38 |
@@ -93,28 +93,28 @@ runner metrics do not by themselves claim complete ECMAScript conformance.
 | SharedArrayBuffer | 16 | 1 | 450 | 0 | 467 |
 | String.fromCodePoint | 3 | 0 | 19 | 0 | 22 |
 | String.prototype.at | 0 | 0 | 11 | 0 | 11 |
-| String.prototype.endsWith | 16 | 2 | 9 | 0 | 27 |
-| String.prototype.includes | 14 | 4 | 8 | 0 | 26 |
+| String.prototype.endsWith | 18 | 0 | 9 | 0 | 27 |
+| String.prototype.includes | 17 | 1 | 8 | 0 | 26 |
 | String.prototype.isWellFormed | 0 | 0 | 8 | 0 | 8 |
 | String.prototype.matchAll | 0 | 0 | 16 | 0 | 16 |
 | String.prototype.replaceAll | 4 | 6 | 31 | 0 | 41 |
 | String.prototype.toWellFormed | 0 | 0 | 8 | 0 | 8 |
 | String.prototype.trimEnd | 0 | 0 | 24 | 0 | 24 |
 | String.prototype.trimStart | 0 | 0 | 23 | 0 | 23 |
-| Symbol | 118 | 18 | 1358 | 0 | 1494 |
+| Symbol | 135 | 6 | 1353 | 0 | 1494 |
 | Symbol.asyncIterator | 0 | 0 | 538 | 0 | 538 |
 | Symbol.hasInstance | 2 | 0 | 15 | 0 | 17 |
 | Symbol.isConcatSpreadable | 1 | 0 | 33 | 0 | 34 |
-| Symbol.iterator | 2 | 0 | 1865 | 0 | 1867 |
-| Symbol.match | 1 | 0 | 87 | 0 | 88 |
+| Symbol.iterator | 8 | 7 | 1852 | 0 | 1867 |
+| Symbol.match | 2 | 0 | 86 | 0 | 88 |
 | Symbol.matchAll | 1 | 0 | 62 | 0 | 63 |
-| Symbol.prototype.description | 0 | 2 | 6 | 0 | 8 |
+| Symbol.prototype.description | 0 | 3 | 5 | 0 | 8 |
 | Symbol.replace | 1 | 1 | 96 | 0 | 98 |
 | Symbol.search | 2 | 0 | 35 | 0 | 37 |
 | Symbol.species | 8 | 0 | 276 | 0 | 284 |
 | Symbol.split | 1 | 0 | 57 | 0 | 58 |
-| Symbol.toPrimitive | 10 | 6 | 217 | 0 | 233 |
-| Symbol.toStringTag | 0 | 0 | 131 | 0 | 131 |
+| Symbol.toPrimitive | 10 | 4 | 219 | 0 | 233 |
+| Symbol.toStringTag | 0 | 1 | 130 | 0 | 131 |
 | Symbol.unscopables | 0 | 0 | 45 | 0 | 45 |
 | Temporal | 0 | 0 | 6714 | 0 | 6714 |
 | TypedArray | 12 | 9 | 2503 | 0 | 2524 |
@@ -123,11 +123,11 @@ runner metrics do not by themselves claim complete ECMAScript conformance.
 | Uint32Array | 0 | 0 | 2 | 0 | 2 |
 | Uint8Array | 2 | 0 | 11 | 0 | 13 |
 | Uint8ClampedArray | 2 | 0 | 4 | 0 | 6 |
-| WeakMap | 23 | 0 | 56 | 0 | 79 |
-| WeakRef | 0 | 3 | 34 | 0 | 37 |
+| WeakMap | 30 | 0 | 49 | 0 | 79 |
+| WeakRef | 0 | 4 | 33 | 0 | 37 |
 | WeakSet | 7 | 0 | 27 | 0 | 34 |
 | __getter__ | 0 | 0 | 27 | 0 | 27 |
-| __proto__ | 0 | 0 | 20 | 0 | 20 |
+| __proto__ | 0 | 1 | 19 | 0 | 20 |
 | __setter__ | 0 | 0 | 27 | 0 | 27 |
 | align-detached-buffer-semantics-with-web-reality | 0 | 0 | 158 | 0 | 158 |
 | arbitrary-module-namespace-names | 0 | 0 | 16 | 0 | 16 |
@@ -135,18 +135,18 @@ runner metrics do not by themselves claim complete ECMAScript conformance.
 | array-grouping | 4 | 0 | 24 | 0 | 28 |
 | arraybuffer-transfer | 1 | 0 | 58 | 0 | 59 |
 | arrow-function | 65 | 0 | 884 | 0 | 949 |
-| async-functions | 163 | 40 | 502 | 0 | 705 |
+| async-functions | 167 | 36 | 502 | 0 | 705 |
 | async-iteration | 561 | 32 | 4378 | 0 | 4971 |
 | await-dictionary | 2 | 0 | 87 | 0 | 89 |
-| caller | 0 | 0 | 23 | 0 | 23 |
+| caller | 5 | 0 | 18 | 0 | 23 |
 | canonical-tz | 0 | 0 | 19 | 0 | 19 |
 | change-array-by-copy | 0 | 0 | 132 | 0 | 132 |
-| class | 658 | 88 | 4046 | 0 | 4792 |
+| class | 662 | 88 | 4042 | 0 | 4792 |
 | class-fields-private | 374 | 0 | 760 | 0 | 1134 |
 | class-fields-private-in | 8 | 0 | 11 | 0 | 19 |
 | class-fields-public | 251 | 38 | 1769 | 0 | 2058 |
 | class-methods-private | 344 | 0 | 1365 | 0 | 1709 |
-| class-static-block | 15 | 13 | 37 | 0 | 65 |
+| class-static-block | 17 | 11 | 37 | 0 | 65 |
 | class-static-fields-private | 16 | 0 | 329 | 0 | 345 |
 | class-static-fields-public | 18 | 12 | 183 | 0 | 213 |
 | class-static-methods-private | 162 | 0 | 1351 | 0 | 1513 |
@@ -184,52 +184,52 @@ runner metrics do not by themselves claim complete ECMAScript conformance.
 | joint-iteration | 0 | 0 | 82 | 0 | 82 |
 | json-modules | 0 | 0 | 14 | 0 | 14 |
 | json-parse-with-source | 0 | 0 | 22 | 0 | 22 |
-| json-superset | 0 | 2 | 2 | 0 | 4 |
+| json-superset | 2 | 0 | 2 | 0 | 4 |
 | legacy-regexp | 0 | 0 | 26 | 0 | 26 |
 | let | 10 | 2 | 65 | 0 | 77 |
 | logical-assignment-operators | 12 | 0 | 96 | 0 | 108 |
 | new.target | 12 | 0 | 51 | 0 | 63 |
 | nonextensible-applies-to-private | 0 | 0 | 4 | 0 | 4 |
-| numeric-separator-literal | 8 | 56 | 95 | 0 | 159 |
+| numeric-separator-literal | 64 | 0 | 95 | 0 | 159 |
 | object-rest | 3 | 0 | 352 | 0 | 355 |
 | object-spread | 24 | 0 | 111 | 0 | 135 |
 | optional-catch-binding | 0 | 1 | 4 | 0 | 5 |
 | optional-chaining | 26 | 0 | 30 | 0 | 56 |
 | path:annexB/built-ins | 0 | 0 | 156 | 0 | 156 |
-| path:annexB/language | 66 | 19 | 734 | 0 | 819 |
-| path:built-ins/Array | 96 | 22 | 2349 | 0 | 2467 |
+| path:annexB/language | 53 | 26 | 740 | 0 | 819 |
+| path:built-ins/Array | 139 | 15 | 2313 | 0 | 2467 |
 | path:built-ins/ArrayBuffer | 6 | 0 | 36 | 0 | 42 |
 | path:built-ins/AsyncFunction | 0 | 0 | 14 | 0 | 14 |
 | path:built-ins/Boolean | 0 | 0 | 46 | 0 | 46 |
 | path:built-ins/DataView | 3 | 1 | 195 | 0 | 199 |
 | path:built-ins/Date | 4 | 0 | 472 | 0 | 476 |
 | path:built-ins/Error | 2 | 0 | 35 | 0 | 37 |
-| path:built-ins/Function | 77 | 4 | 332 | 0 | 413 |
-| path:built-ins/Infinity | 0 | 0 | 6 | 0 | 6 |
+| path:built-ins/Function | 67 | 19 | 327 | 0 | 413 |
+| path:built-ins/Infinity | 0 | 1 | 5 | 0 | 6 |
 | path:built-ins/JSON | 21 | 0 | 86 | 0 | 107 |
 | path:built-ins/Map | 3 | 1 | 86 | 0 | 90 |
 | path:built-ins/MapIteratorPrototype | 0 | 0 | 2 | 0 | 2 |
 | path:built-ins/Math | 0 | 0 | 276 | 0 | 276 |
-| path:built-ins/NaN | 1 | 0 | 5 | 0 | 6 |
+| path:built-ins/NaN | 1 | 1 | 4 | 0 | 6 |
 | path:built-ins/NativeErrors | 3 | 4 | 73 | 0 | 80 |
-| path:built-ins/Number | 2 | 1 | 277 | 0 | 280 |
-| path:built-ins/Object | 146 | 52 | 2879 | 0 | 3077 |
+| path:built-ins/Number | 3 | 0 | 277 | 0 | 280 |
+| path:built-ins/Object | 259 | 171 | 2647 | 0 | 3077 |
 | path:built-ins/Promise | 12 | 1 | 272 | 0 | 285 |
 | path:built-ins/Proxy | 0 | 0 | 2 | 0 | 2 |
 | path:built-ins/RegExp | 13 | 0 | 568 | 0 | 581 |
 | path:built-ins/Set | 64 | 1 | 90 | 0 | 155 |
 | path:built-ins/SetIteratorPrototype | 0 | 0 | 2 | 0 | 2 |
 | path:built-ins/ShadowRealm | 0 | 3 | 0 | 0 | 3 |
-| path:built-ins/String | 33 | 7 | 864 | 0 | 904 |
+| path:built-ins/String | 64 | 1 | 839 | 0 | 904 |
 | path:built-ins/ThrowTypeError | 0 | 0 | 13 | 0 | 13 |
-| path:built-ins/WeakMap | 30 | 0 | 24 | 0 | 54 |
+| path:built-ins/WeakMap | 30 | 2 | 22 | 0 | 54 |
 | path:built-ins/WeakSet | 29 | 1 | 25 | 0 | 55 |
 | path:built-ins/decodeURI | 0 | 0 | 54 | 0 | 54 |
 | path:built-ins/decodeURIComponent | 0 | 0 | 55 | 0 | 55 |
 | path:built-ins/encodeURI | 0 | 0 | 30 | 0 | 30 |
 | path:built-ins/encodeURIComponent | 0 | 0 | 30 | 0 | 30 |
 | path:built-ins/eval | 0 | 0 | 8 | 0 | 8 |
-| path:built-ins/global | 3 | 0 | 24 | 0 | 27 |
+| path:built-ins/global | 2 | 1 | 24 | 0 | 27 |
 | path:built-ins/isFinite | 0 | 0 | 7 | 0 | 7 |
 | path:built-ins/isNaN | 0 | 0 | 7 | 0 | 7 |
 | path:built-ins/parseFloat | 0 | 0 | 37 | 0 | 37 |
@@ -279,7 +279,7 @@ runner metrics do not by themselves claim complete ECMAScript conformance.
 | path:harness/asyncHelpers-throwsAsync-resolved-error.js | 0 | 0 | 1 | 0 | 1 |
 | path:harness/asyncHelpers-throwsAsync-same-realm.js | 0 | 0 | 1 | 0 | 1 |
 | path:harness/asyncHelpers-throwsAsync-single-arg.js | 0 | 0 | 1 | 0 | 1 |
-| path:harness/byteConversionValues.js | 0 | 0 | 1 | 0 | 1 |
+| path:harness/byteConversionValues.js | 1 | 0 | 0 | 0 | 1 |
 | path:harness/compare-array-arguments.js | 0 | 0 | 1 | 0 | 1 |
 | path:harness/compare-array-arraylike.js | 0 | 0 | 1 | 0 | 1 |
 | path:harness/compare-array-different-elements.js | 0 | 0 | 1 | 0 | 1 |
@@ -290,7 +290,7 @@ runner metrics do not by themselves claim complete ECMAScript conformance.
 | path:harness/compare-array-same-elements-same-order.js | 0 | 0 | 1 | 0 | 1 |
 | path:harness/compare-array-samevalue.js | 0 | 0 | 1 | 0 | 1 |
 | path:harness/compare-array-sparse.js | 0 | 0 | 1 | 0 | 1 |
-| path:harness/dateConstants.js | 0 | 0 | 1 | 0 | 1 |
+| path:harness/dateConstants.js | 1 | 0 | 0 | 0 | 1 |
 | path:harness/decimalToHexString.js | 0 | 0 | 1 | 0 | 1 |
 | path:harness/deepEqual-array.js | 0 | 0 | 1 | 0 | 1 |
 | path:harness/deepEqual-circular.js | 0 | 0 | 1 | 0 | 1 |
@@ -365,35 +365,35 @@ runner metrics do not by themselves claim complete ECMAScript conformance.
 | path:intl402/supportedLocalesOf-test-option-localeMatcher.js | 0 | 0 | 1 | 0 | 1 |
 | path:intl402/supportedLocalesOf-throws-if-element-not-string-or-object.js | 0 | 0 | 1 | 0 | 1 |
 | path:intl402/supportedLocalesOf-unicode-extensions-ignored.js | 0 | 0 | 1 | 0 | 1 |
-| path:language/arguments-object | 3 | 3 | 118 | 0 | 124 |
+| path:language/arguments-object | 3 | 1 | 120 | 0 | 124 |
 | path:language/asi | 67 | 5 | 30 | 0 | 102 |
-| path:language/block-scope | 21 | 45 | 28 | 0 | 94 |
+| path:language/block-scope | 37 | 29 | 28 | 0 | 94 |
 | path:language/comments | 16 | 0 | 4 | 0 | 20 |
 | path:language/computed-property-names | 4 | 0 | 39 | 0 | 43 |
-| path:language/directive-prologue | 11 | 11 | 40 | 0 | 62 |
+| path:language/directive-prologue | 11 | 12 | 39 | 0 | 62 |
 | path:language/eval-code | 8 | 0 | 200 | 0 | 208 |
 | path:language/export | 0 | 0 | 3 | 0 | 3 |
-| path:language/expressions | 589 | 134 | 1939 | 0 | 2662 |
-| path:language/function-code | 55 | 1 | 161 | 0 | 217 |
+| path:language/expressions | 639 | 123 | 1900 | 0 | 2662 |
+| path:language/function-code | 55 | 8 | 154 | 0 | 217 |
 | path:language/future-reserved-words | 33 | 15 | 7 | 0 | 55 |
-| path:language/global-code | 1 | 4 | 26 | 0 | 31 |
-| path:language/identifier-resolution | 4 | 0 | 8 | 0 | 12 |
+| path:language/global-code | 0 | 5 | 26 | 0 | 31 |
+| path:language/identifier-resolution | 5 | 0 | 7 | 0 | 12 |
 | path:language/identifiers | 132 | 26 | 49 | 0 | 207 |
 | path:language/import | 0 | 62 | 4 | 0 | 66 |
 | path:language/keywords | 10 | 15 | 0 | 0 | 25 |
-| path:language/line-terminators | 19 | 11 | 11 | 0 | 41 |
-| path:language/literals | 80 | 47 | 135 | 0 | 262 |
+| path:language/line-terminators | 22 | 8 | 11 | 0 | 41 |
+| path:language/literals | 142 | 28 | 92 | 0 | 262 |
 | path:language/module-code | 0 | 156 | 236 | 0 | 392 |
 | path:language/punctuators | 10 | 0 | 1 | 0 | 11 |
 | path:language/reserved-words | 14 | 0 | 13 | 0 | 27 |
 | path:language/rest-parameters | 1 | 0 | 10 | 0 | 11 |
 | path:language/source-text | 0 | 0 | 1 | 0 | 1 |
 | path:language/statementList | 8 | 0 | 34 | 0 | 42 |
-| path:language/statements | 307 | 182 | 948 | 0 | 1437 |
-| path:language/types | 42 | 3 | 64 | 0 | 109 |
-| path:language/white-space | 17 | 0 | 48 | 0 | 65 |
+| path:language/statements | 313 | 182 | 942 | 0 | 1437 |
+| path:language/types | 50 | 3 | 56 | 0 | 109 |
+| path:language/white-space | 22 | 0 | 43 | 0 | 65 |
 | path:staging/built-ins | 0 | 0 | 1 | 0 | 1 |
-| path:staging/sm | 31 | 11 | 1148 | 2 | 1192 |
+| path:staging/sm | 36 | 10 | 1144 | 2 | 1192 |
 | path:staging/source-phase-imports | 0 | 2 | 0 | 0 | 2 |
 | path:staging/top-level-await | 0 | 3 | 0 | 0 | 3 |
 | promise-try | 2 | 0 | 10 | 0 | 12 |
@@ -420,7 +420,7 @@ runner metrics do not by themselves claim complete ECMAScript conformance.
 | tail-call-optimization | 0 | 0 | 35 | 0 | 35 |
 | template | 0 | 0 | 1 | 0 | 1 |
 | top-level-await | 0 | 0 | 277 | 0 | 277 |
-| u180e | 3 | 2 | 20 | 0 | 25 |
+| u180e | 4 | 1 | 20 | 0 | 25 |
 | uint8array-base64 | 1 | 0 | 70 | 0 | 71 |
-| upsert | 12 | 0 | 60 | 0 | 72 |
+| upsert | 13 | 0 | 59 | 0 | 72 |
 | well-formed-json-stringify | 0 | 0 | 1 | 0 | 1 |

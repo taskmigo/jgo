@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"strconv"
+	"unicode/utf16"
 	"weak"
 )
 
@@ -20,206 +21,213 @@ const (
 	KindSymbol
 )
 
+// Value is an ECMAScript language value. String values are stored as UTF-16
+// code units so lone surrogates and indexed string access remain lossless.
 type Value struct {
 	k  Kind
 	b  bool
 	n  float64
-	s  string
+	s  []uint16
 	o  *Object
 	f  *function
 	sy *symbolValue
 }
 
-func Undefined() Value            { return Value{k: KindUndefined} }
-func Null() Value                 { return Value{k: KindNull} }
-func Boolean(v bool) Value        { return Value{k: KindBoolean, b: v} }
-func Number(v float64) Value      { return Value{k: KindNumber, n: v} }
-func String(v string) Value       { return Value{k: KindString, s: v} }
-func (v Value) Kind() Kind        { return v.k }
-func (v Value) IsUndefined() bool { return v.k == KindUndefined }
+func Undefined() Value           { return Value{k: KindUndefined} }
+func Null() Value                { return Value{k: KindNull} }
+func Boolean(value bool) Value   { return Value{k: KindBoolean, b: value} }
+func Number(value float64) Value { return Value{k: KindNumber, n: value} }
+func String(value string) Value  { return StringUTF16(utf16.Encode([]rune(value))) }
 
-// IsConstructor reports whether a value implements ECMAScript [[Construct]].
-func (v Value) IsConstructor() bool { return v.k == KindFunction && !v.f.noConstruct }
-func (v Value) Bool() bool          { return truthy(v) }
-func (v Value) Float64() float64    { return number(v) }
-func (v Value) String() string {
-	switch v.k {
+func StringUTF16(codeUnits []uint16) Value {
+	return Value{k: KindString, s: append([]uint16(nil), codeUnits...)}
+}
+
+func (value Value) Kind() Kind        { return value.k }
+func (value Value) IsUndefined() bool { return value.k == KindUndefined }
+func (value Value) IsConstructor() bool {
+	return value.k == KindFunction && value.f.construct != nil
+}
+func (value Value) ToBoolean() bool            { return toBoolean(value) }
+func (value Value) ToNumber() (float64, error) { return toNumber(value) }
+func (value Value) ToString() (string, error) {
+	text, err := toString(value)
+	if err != nil {
+		return "", err
+	}
+	return text.goString(), nil
+}
+func (value Value) UTF16() ([]uint16, bool) {
+	if value.k != KindString {
+		return nil, false
+	}
+	return append([]uint16(nil), value.s...), true
+}
+
+// Inspect returns an error-free representation intended for diagnostics and
+// command output. It is deliberately separate from ECMAScript ToString.
+func (value Value) Inspect() string {
+	switch value.k {
 	case KindUndefined:
 		return "undefined"
 	case KindNull:
 		return "null"
 	case KindBoolean:
-		return strconv.FormatBool(v.b)
+		return strconv.FormatBool(value.b)
 	case KindNumber:
-		if math.IsNaN(v.n) {
-			return "NaN"
-		}
-		if math.IsInf(v.n, 1) {
-			return "Infinity"
-		}
-		if math.IsInf(v.n, -1) {
-			return "-Infinity"
-		}
-		return strconv.FormatFloat(v.n, 'g', -1, 64)
+		return numberToString(value.n)
 	case KindString:
-		return v.s
+		return jsString(value.s).goString()
 	case KindFunction:
 		return "function"
 	case KindSymbol:
-		return "Symbol(" + v.sy.description + ")"
+		return "Symbol(" + value.sy.description.goString() + ")"
 	case KindObject:
-		if v.o.array {
+		if value.o.array {
 			return "[object Array]"
 		}
 		return "[object Object]"
+	default:
+		return "undefined"
 	}
-	return "undefined"
+}
+
+type jsString []uint16
+
+func (value jsString) clone() jsString  { return append(jsString(nil), value...) }
+func (value jsString) goString() string { return string(utf16.Decode(value)) }
+func (value jsString) equal(other jsString) bool {
+	if len(value) != len(other) {
+		return false
+	}
+	for index := range value {
+		if value[index] != other[index] {
+			return false
+		}
+	}
+	return true
 }
 
 type weakIdentity struct {
 	padding [32]byte
 	p       *byte
 }
+
 type symbolValue struct {
 	identity    *weakIdentity
-	description string
+	description jsString
 	registered  bool
 }
 
 func newIdentity() *weakIdentity { return &weakIdentity{p: new(byte)} }
 
+// PropertyKey is either an ECMAScript String or Symbol property key.
+type PropertyKey struct {
+	name   string
+	symbol *symbolValue
+}
+
+func StringKey(name string) PropertyKey { return PropertyKey{name: name} }
+func SymbolKey(symbol Value) (PropertyKey, error) {
+	if symbol.k != KindSymbol {
+		return PropertyKey{}, typeError("property key is not a symbol")
+	}
+	return PropertyKey{symbol: symbol.sy}, nil
+}
+
+func (key PropertyKey) isSymbol() bool { return key.symbol != nil }
+
+// PropertyDescriptor models a data property. Accessor descriptors can be
+// added without changing the object storage or lookup algorithms.
+type PropertyDescriptor struct {
+	Value        Value
+	Writable     bool
+	Enumerable   bool
+	Configurable bool
+}
+
 type Object struct {
-	identity *weakIdentity
-	props    map[string]Value
-	array    bool
-	weakmap  *weakMapData
+	identity   *weakIdentity
+	properties map[PropertyKey]PropertyDescriptor
+	prototype  *Object
+	array      bool
+	weakmap    *weakMapData
 }
 
-func NewObject() Value {
-	return Value{k: KindObject, o: &Object{identity: newIdentity(), props: map[string]Value{}}}
+func newObject(prototype *Object) *Object {
+	return &Object{identity: newIdentity(), properties: make(map[PropertyKey]PropertyDescriptor), prototype: prototype}
 }
 
-// SetProperty defines an own property on an object for host-provided APIs.
-func (v Value) SetProperty(name string, value Value) error { return setProperty(v, name, value) }
+func NewObject() Value { return Value{k: KindObject, o: newObject(nil)} }
 
-// SameValue implements the ECMAScript SameValue abstract operation. Unlike
-// strict equality it considers NaN equal to itself and distinguishes signed
-// zero. It never coerces either operand.
-func SameValue(a, b Value) bool {
-	if a.k != b.k {
-		return false
-	}
-	switch a.k {
-	case KindUndefined, KindNull:
-		return true
-	case KindBoolean:
-		return a.b == b.b
-	case KindNumber:
-		if math.IsNaN(a.n) || math.IsNaN(b.n) {
-			return math.IsNaN(a.n) && math.IsNaN(b.n)
-		}
-		if a.n == 0 && b.n == 0 {
-			return math.Signbit(a.n) == math.Signbit(b.n)
-		}
-		return a.n == b.n
-	case KindString:
-		return a.s == b.s
-	case KindObject:
-		return a.o == b.o
-	case KindFunction:
-		return a.f == b.f
-	case KindSymbol:
-		return a.sy == b.sy
-	}
-	return false
-}
-
-// sameValueZero is used by collection-like operations such as
-// Array.prototype.includes. It differs from SameValue only for signed zero.
-func sameValueZero(a, b Value) bool {
-	if a.k == KindNumber && b.k == KindNumber && math.IsNaN(a.n) && math.IsNaN(b.n) {
-		return true
-	}
-	return strictlyEqual(a, b)
-}
 func NewArray(values ...Value) Value {
-	o := &Object{identity: newIdentity(), props: map[string]Value{}, array: true}
-	for i, v := range values {
-		o.props[strconv.Itoa(i)] = v
+	object := newObject(nil)
+	object.array = true
+	for index, value := range values {
+		object.properties[StringKey(strconv.Itoa(index))] = defaultProperty(value)
 	}
-	o.props["length"] = Number(float64(len(values)))
-	return Value{k: KindObject, o: o}
+	object.properties[StringKey("length")] = PropertyDescriptor{Value: Number(float64(len(values))), Writable: true}
+	return Value{k: KindObject, o: object}
 }
 
-type NativeFunction func(runtime *Runtime, this Value, args []Value) (Value, error)
+func defaultProperty(value Value) PropertyDescriptor {
+	return PropertyDescriptor{Value: value, Writable: true, Enumerable: true, Configurable: true}
+}
+
+type NativeFunction func(runtime *Runtime, this Value, arguments []Value) (Value, error)
+
 type function struct {
-	identity      *weakIdentity
-	native        NativeFunction
-	props         map[string]Value
-	constructOnly bool
-	noConstruct   bool
-	params        []string
-	body          []stmt
-	closure       *environment
-	name          string
+	identity  *weakIdentity
+	object    *Object
+	call      NativeFunction
+	construct NativeFunction
+	params    []string
+	body      []stmt
+	closure   *environment
+	name      string
 }
 
-func nativeValue(fn NativeFunction) Value {
-	return Value{k: KindFunction, f: &function{identity: newIdentity(), native: fn, props: map[string]Value{}}}
+func nativeValue(call NativeFunction) Value {
+	return Value{k: KindFunction, f: &function{identity: newIdentity(), object: newObject(nil), call: call}}
 }
-func truthy(v Value) bool {
-	switch v.k {
-	case KindUndefined, KindNull:
-		return false
-	case KindBoolean:
-		return v.b
-	case KindNumber:
-		return v.n != 0
-	case KindString:
-		return v.s != ""
-	default:
-		return true
-	}
-}
-func number(v Value) float64 {
-	switch v.k {
-	case KindNumber:
-		return v.n
-	case KindBoolean:
-		if v.b {
-			return 1
+
+func identity(value Value) (weak.Pointer[weakIdentity], *weakIdentity, bool) {
+	var identity *weakIdentity
+	switch value.k {
+	case KindObject:
+		if value.o != nil {
+			identity = value.o.identity
 		}
-		return 0
-	case KindNull:
-		return 0
-	case KindString:
-		n, _ := strconv.ParseFloat(v.s, 64)
-		return n
-	default:
-		return 0
+	case KindFunction:
+		if value.f != nil {
+			identity = value.f.identity
+		}
+	case KindSymbol:
+		if value.sy != nil && !value.sy.registered {
+			identity = value.sy.identity
+		}
 	}
-}
-func identity(v Value) (weak.Pointer[weakIdentity], *weakIdentity, bool) {
-	var id *weakIdentity
-	if v.k == KindObject && v.o != nil {
-		id = v.o.identity
-	} else if v.k == KindFunction && v.f != nil {
-		id = v.f.identity
-	} else if v.k == KindSymbol && v.sy != nil && !v.sy.registered {
-		id = v.sy.identity
-	} else {
+	if identity == nil {
 		return weak.Pointer[weakIdentity]{}, nil, false
 	}
-	return weak.Make(id), id, true
+	return weak.Make(identity), identity, true
 }
-func setProperty(v Value, key string, x Value) error {
-	if v.k != KindObject {
-		if v.k == KindFunction {
-			v.f.props[key] = x
-			return nil
-		}
-		return fmt.Errorf("cannot set property on %s", v.String())
+
+func numberToString(number float64) string {
+	switch {
+	case math.IsNaN(number):
+		return "NaN"
+	case math.IsInf(number, 1):
+		return "Infinity"
+	case math.IsInf(number, -1):
+		return "-Infinity"
+	case number == 0:
+		return "0"
+	default:
+		return strconv.FormatFloat(number, 'g', -1, 64)
 	}
-	v.o.props[key] = x
-	return nil
+}
+
+func (value Value) debugType() string {
+	return fmt.Sprintf("Kind(%d)", value.k)
 }

@@ -32,7 +32,7 @@ func runOne(root, name string, steps uint64, timeout time.Duration) (res result)
 		return res
 	}
 
-	runtime := gots.New(gots.WithMaxSteps(steps))
+	runtime := gots.New(gots.Config{MaxSteps: steps})
 	if !contains(metadata.flags, "raw") {
 		if err := installHarness(runtime); err != nil {
 			res.Status, res.Reason = statusFail, err.Error()
@@ -46,7 +46,7 @@ func runOne(root, name string, steps uint64, timeout time.Duration) (res result)
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	_, executionErr := runtime.RunContext(ctx, program)
+	_, executionErr := runtime.Evaluate(ctx, program)
 	classifyExecution(&res, metadata, executionErr)
 	return res
 }
@@ -62,15 +62,6 @@ func loadTestFile(root, name string) (metadata, string, error) {
 func prepareTestSource(root string, metadata metadata, body string) (string, error) {
 	prefix := ""
 	if !contains(metadata.flags, "raw") {
-		// This shim is feature-scoped so unrelated Object tests remain unsupported.
-		if contains(metadata.features, "Object.is") {
-			prefix += `Object.getOwnPropertyDescriptor = function(object, name) {
-	if (object === Object && name === "is") {
-		return {value: Object.is, writable: true, enumerable: false, configurable: true};
-	}
-};
-`
-		}
 		for _, include := range metadata.includes {
 			// The host implementation avoids requiring unsupported try/catch syntax.
 			if include == "isConstructor.js" && contains(metadata.features, "Object.is") {
@@ -142,21 +133,21 @@ func classifyExecution(result *result, metadata metadata, err error) {
 }
 
 func installHarness(runtime *gots.Runtime) error {
-	if err := runtime.Set("isConstructor", gots.NativeFunction(func(_ *gots.Runtime, _ gots.Value, args []gots.Value) (gots.Value, error) {
+	if err := runtime.Define("isConstructor", gots.NativeFunction(func(_ *gots.Runtime, _ gots.Value, args []gots.Value) (gots.Value, error) {
 		return gots.Boolean(len(args) > 0 && args[0].IsConstructor()), nil
 	})); err != nil {
 		return err
 	}
 	assertCall := gots.NativeFunction(func(_ *gots.Runtime, _ gots.Value, args []gots.Value) (gots.Value, error) {
-		if len(args) == 0 || !args[0].Bool() {
+		if len(args) == 0 || !args[0].ToBoolean() {
 			return gots.Undefined(), fmt.Errorf("Test262 assertion failed")
 		}
 		return gots.Undefined(), nil
 	})
-	if err := runtime.Set("assert", assertCall); err != nil {
+	if err := runtime.Define("assert", assertCall); err != nil {
 		return err
 	}
-	assert := runtime.Get("assert")
+	assert, _ := runtime.Lookup("assert")
 	same := gots.NativeFunction(func(_ *gots.Runtime, _ gots.Value, args []gots.Value) (gots.Value, error) {
 		if len(args) < 2 || !gots.SameValue(args[0], args[1]) {
 			return gots.Undefined(), fmt.Errorf("Test262 assertion failed: values are not the same")
@@ -173,26 +164,27 @@ func installHarness(runtime *gots.Runtime) error {
 		if len(args) < 2 {
 			return gots.Undefined(), fmt.Errorf("Test262 assert.throws requires a constructor and callback")
 		}
-		if _, err := runtime.Call(args[1], gots.Undefined()); err == nil {
+		if _, err := runtime.Call(context.Background(), args[1], gots.Undefined()); err == nil {
 			return gots.Undefined(), fmt.Errorf("Test262 assertion failed: expected an exception")
 		}
 		return gots.Undefined(), nil
 	})
 	for name, function := range map[string]gots.NativeFunction{"sameValue": same, "notSameValue": notSame, "throws": throws} {
 		key := "__test262_" + name
-		if err := runtime.Set(key, function); err != nil {
+		if err := runtime.Define(key, function); err != nil {
 			return err
 		}
-		if err := assert.SetProperty(name, runtime.Get(key)); err != nil {
+		propertyValue, _ := runtime.Lookup(key)
+		if err := runtime.SetProperty(assert, gots.String(name), propertyValue); err != nil {
 			return err
 		}
 	}
-	if err := runtime.Set("assert", assert); err != nil {
+	if err := runtime.Define("assert", assert); err != nil {
 		return err
 	}
 	// Error constructors are identity markers for assert.throws in this subset.
 	for _, name := range []string{"TypeError", "RangeError", "SyntaxError"} {
-		if err := runtime.Set(name, gots.NativeFunction(func(_ *gots.Runtime, _ gots.Value, _ []gots.Value) (gots.Value, error) { return gots.NewObject(), nil })); err != nil {
+		if err := runtime.Define(name, gots.NativeFunction(func(_ *gots.Runtime, _ gots.Value, _ []gots.Value) (gots.Value, error) { return gots.NewObject(), nil })); err != nil {
 			return err
 		}
 	}

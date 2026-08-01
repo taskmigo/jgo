@@ -21,7 +21,64 @@ func parse(source string) ([]stmt, error) {
 		}
 		out = append(out, s)
 	}
+	if err := validateStatementList(out); err != nil {
+		return nil, err
+	}
 	return out, nil
+}
+
+func validateStatementList(statements []stmt) error {
+	lexicalNames := make(map[string]Span)
+	varNames := make(map[string]Span)
+	for _, statement := range statements {
+		var declarations []*varStmt
+		switch node := statement.(type) {
+		case *varStmt:
+			declarations = []*varStmt{node}
+		case *varsStmt:
+			declarations = node.declarations
+		case *functionStmt:
+			if _, found := lexicalNames[node.name]; found {
+				return declarationSyntaxError(node.name, node.span())
+			}
+			varNames[node.name] = node.span()
+			if err := validateStatementList(node.fn.body); err != nil {
+				return err
+			}
+		case *blockStmt:
+			if err := validateStatementList(node.body); err != nil {
+				return err
+			}
+		case *forStmt:
+			if block, ok := node.body.(*blockStmt); ok {
+				if err := validateStatementList(block.body); err != nil {
+					return err
+				}
+			}
+		}
+		for _, declaration := range declarations {
+			if declaration.declaration == TokVar {
+				if _, found := lexicalNames[declaration.name]; found {
+					return declarationSyntaxError(declaration.name, declaration.span())
+				}
+				varNames[declaration.name] = declaration.span()
+				continue
+			}
+			if _, found := lexicalNames[declaration.name]; found {
+				return declarationSyntaxError(declaration.name, declaration.span())
+			}
+			if _, found := varNames[declaration.name]; found {
+				return declarationSyntaxError(declaration.name, declaration.span())
+			}
+			lexicalNames[declaration.name] = declaration.span()
+		}
+	}
+	return nil
+}
+
+func declarationSyntaxError(name string, span Span) error {
+	token := Token{Type: TokIdent, Literal: name, Span: span}
+	return &SyntaxError{Span: span, Token: token, Message: "identifier has already been declared"}
 }
 func (p *parser) statement() (stmt, error) {
 	if p.match(TokSemi) {
@@ -82,7 +139,7 @@ func (p *parser) variableStatement(keyword Token) (stmt, error) {
 		}
 		declarations = append(declarations, &varStmt{
 			base: base{keyword.Span}, name: name.Literal, value: initializer,
-			constant: keyword.Type == TokConst,
+			declaration: keyword.Type,
 		})
 		if !p.match(TokComma) {
 			break
@@ -317,7 +374,7 @@ func (p *parser) unary() (expr, error) {
 			x = &callExpr{base: base{Span{x.span().Start, end.Span.End}}, callee: x, args: args, construct: construct}
 			construct = false
 		} else if p.match(TokDot) {
-			n, e := p.need(TokIdent, "expected property name")
+			n, e := p.needIdentifierName("expected property name")
 			if e != nil {
 				return nil, e
 			}
@@ -341,13 +398,38 @@ func (p *parser) unary() (expr, error) {
 	}
 	return x, nil
 }
+
+func (p *parser) needIdentifierName(message string) (Token, error) {
+	token := p.peek()
+	if token.Type == TokIdent || isKeyword(token.Type) {
+		p.take()
+		return token, nil
+	}
+	return Token{}, p.err(token, message)
+}
+
+func isKeyword(tokenType TokenType) bool {
+	switch tokenType {
+	case TokLet, TokVar, TokConst, TokFunction, TokReturn, TokIf, TokElse, TokWhile,
+		TokFor, TokTrue, TokFalse, TokNull, TokUndefined, TokNew, TokTypeof:
+		return true
+	default:
+		return false
+	}
+}
 func (p *parser) primary() (expr, error) {
 	t := p.take()
 	switch t.Type {
 	case TokNumber:
+		if t.numberValue != nil {
+			return &literalExpr{base: base{t.Span}, value: Number(*t.numberValue)}, nil
+		}
 		n, _ := strconv.ParseFloat(t.Literal, 64)
 		return &literalExpr{base: base{t.Span}, value: Number(n)}, nil
 	case TokString:
+		if t.stringValue != nil {
+			return &literalExpr{base: base{t.Span}, value: StringUTF16(*t.stringValue)}, nil
+		}
 		return &literalExpr{base: base{t.Span}, value: String(t.Literal)}, nil
 	case TokTrue:
 		return &literalExpr{base: base{t.Span}, value: Boolean(true)}, nil

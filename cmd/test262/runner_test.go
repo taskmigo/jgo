@@ -75,7 +75,7 @@ func TestRunCLIExitCodes(t *testing.T) {
 	baselinePath := filepath.Join(temporary, "baseline.json")
 	baseline := baselineSnapshot{
 		Commit:      "b363f29d3c43c626dc852744ad64a0b48a003693",
-		ECMAVersion: "ECMAScript 2025 (ES16), plus later features present in the pinned Test262 commit",
+		ECMAVersion: "ECMAScript 2027 draft snapshot 2026-08-01",
 		Mode:        "selection",
 		Counts:      counts{Pass: 4, Total: 3},
 		ByFeature:   map[string]counts{},
@@ -465,7 +465,7 @@ func TestInferredFeature(t *testing.T) {
 	}
 }
 
-func TestObjectIsDescriptorShimIsFeatureScoped(t *testing.T) {
+func TestObjectDescriptorsRunWithoutHarnessShim(t *testing.T) {
 	root := t.TempDir()
 	testDir := filepath.Join(root, "test", "built-ins", "Object")
 	if err := os.MkdirAll(testDir, 0755); err != nil {
@@ -496,7 +496,7 @@ assert.sameValue(descriptor.configurable, true);`)
 	}
 
 	unrelatedTest := writeTest("unrelated-descriptor.js", "", `Object.getOwnPropertyDescriptor(Object, "hasOwn");`)
-	if got := runOne(root, unrelatedTest, 100000, 2*time.Second); got.Status != "unsupported" {
+	if got := runOne(root, unrelatedTest, 100000, 2*time.Second); got.Status != "pass" {
 		t.Fatalf("unrelated descriptor test: status=%s reason=%s", got.Status, got.Reason)
 	}
 }
