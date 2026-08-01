@@ -100,6 +100,23 @@ func New(options ...Option) *Runtime {
 	})
 	weakMapConstructor.f.constructOnly = true
 	r.global.define("WeakMap", weakMapConstructor, false)
+	symbolConstructor := nativeValue(func(_ *Runtime, _ Value, args []Value) (Value, error) {
+		description := ""
+		if len(args) > 0 && !args[0].IsUndefined() {
+			description = args[0].String()
+		}
+		return Value{k: KindSymbol, sy: &symbolValue{identity: newIdentity(), description: description}}, nil
+	})
+	symbolConstructor.f.noConstruct = true
+	symbolFor := nativeValue(func(_ *Runtime, _ Value, args []Value) (Value, error) {
+		description := "undefined"
+		if len(args) > 0 {
+			description = args[0].String()
+		}
+		return Value{k: KindSymbol, sy: &symbolValue{identity: newIdentity(), description: description, registered: true}}, nil
+	})
+	symbolConstructor.f.props["for"] = symbolFor
+	r.global.define("Symbol", symbolConstructor, false)
 	r.global.define("NaN", Number(math.NaN()), true)
 	r.global.define("Infinity", Number(math.Inf(1)), true)
 	return r
@@ -308,6 +325,8 @@ func (r *Runtime) eval(x expr, e *environment) (Value, error) {
 				return String("string"), nil
 			case KindFunction:
 				return String("function"), nil
+			case KindSymbol:
+				return String("symbol"), nil
 			default:
 				return String("object"), nil
 			}
@@ -424,6 +443,8 @@ func equal(a, b Value) bool {
 		return a.o == b.o
 	case KindFunction:
 		return a.f == b.f
+	case KindSymbol:
+		return a.sy == b.sy
 	}
 	return false
 }
@@ -447,6 +468,9 @@ func (r *Runtime) evalCall(n *callExpr, e *environment) (Value, error) {
 	}
 	if callee.f.constructOnly && !n.construct {
 		return Undefined(), r.err(n.span(), "constructor requires new", nil)
+	}
+	if callee.f.noConstruct && n.construct {
+		return Undefined(), r.err(n.span(), "function is not a constructor", nil)
 	}
 	args := make([]Value, len(n.args))
 	for i, a := range n.args {

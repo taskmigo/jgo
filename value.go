@@ -17,15 +17,17 @@ const (
 	KindString
 	KindObject
 	KindFunction
+	KindSymbol
 )
 
 type Value struct {
-	k Kind
-	b bool
-	n float64
-	s string
-	o *Object
-	f *function
+	k  Kind
+	b  bool
+	n  float64
+	s  string
+	o  *Object
+	f  *function
+	sy *symbolValue
 }
 
 func Undefined() Value            { return Value{k: KindUndefined} }
@@ -60,6 +62,8 @@ func (v Value) String() string {
 		return v.s
 	case KindFunction:
 		return "function"
+	case KindSymbol:
+		return "Symbol(" + v.sy.description + ")"
 	case KindObject:
 		if v.o.array {
 			return "[object Array]"
@@ -72,6 +76,11 @@ func (v Value) String() string {
 type weakIdentity struct {
 	padding [32]byte
 	p       *byte
+}
+type symbolValue struct {
+	identity    *weakIdentity
+	description string
+	registered  bool
 }
 
 func newIdentity() *weakIdentity { return &weakIdentity{p: new(byte)} }
@@ -107,6 +116,7 @@ type function struct {
 	native        NativeFunction
 	props         map[string]Value
 	constructOnly bool
+	noConstruct   bool
 	params        []string
 	body          []stmt
 	closure       *environment
@@ -154,6 +164,8 @@ func identity(v Value) (weak.Pointer[weakIdentity], *weakIdentity, bool) {
 		id = v.o.identity
 	} else if v.k == KindFunction && v.f != nil {
 		id = v.f.identity
+	} else if v.k == KindSymbol && v.sy != nil && !v.sy.registered {
+		id = v.sy.identity
 	} else {
 		return weak.Pointer[weakIdentity]{}, nil, false
 	}

@@ -7,6 +7,9 @@ The current MVP supports primitive values, arrays and objects, lexical bindings,
 blocks, conditionals, loops, functions/closures/recursion, property access,
 basic operators, cooperative context/step/call-depth limits, typed and reflected
 Go functions, and GC-aware `WeakMap` keys built with Go's `weak` package.
+WeakMap also accepts non-registered Symbols as weak keys and implements the
+proposal methods `getOrInsert` and `getOrInsertComputed`; registered
+`Symbol.for` values are rejected as weak keys.
 
 ```go
 r := gots.New(gots.WithMaxSteps(10_000))

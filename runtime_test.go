@@ -74,6 +74,16 @@ func TestWeakMapConstructorAndVarSemantics(t *testing.T) {
 		t.Fatal("WeakMap call without new succeeded")
 	}
 }
+func TestWeakMapSymbolAndGetOrInsert(t *testing.T) {
+	r := New()
+	v, err := r.RunString(`var m=new WeakMap(); var s=Symbol("key"); m.set(s, 1); m.getOrInsert(s, 2) + m.getOrInsert(Symbol(), 3)`)
+	if err != nil || v.Float64() != 4 {
+		t.Fatalf("value=%v error=%v", v, err)
+	}
+	if _, err := r.RunString(`new WeakMap().set(Symbol.for("registered"), 1)`); err == nil {
+		t.Fatal("registered symbol accepted as weak key")
+	}
+}
 func TestWeakMapDoesNotKeepKeyAlive(t *testing.T) {
 	m := newWeakMapValue()
 	done := make(chan struct{})

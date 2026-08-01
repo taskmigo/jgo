@@ -98,6 +98,42 @@ func installWeakMethods(v Value) {
 		}
 		return Boolean(d.delete(args[0])), nil
 	})
+	v.o.props["getOrInsert"] = nativeValue(func(_ *Runtime, this Value, args []Value) (Value, error) {
+		d, e := weakReceiver(this)
+		if e != nil {
+			return Undefined(), e
+		}
+		if len(args) < 2 {
+			return Undefined(), &RuntimeError{Message: "WeakMap.getOrInsert requires two arguments"}
+		}
+		if old, ok := d.get(args[0]); ok {
+			return old, nil
+		}
+		if _, e = d.set(args[0], args[1]); e != nil {
+			return Undefined(), e
+		}
+		return args[1], nil
+	})
+	v.o.props["getOrInsertComputed"] = nativeValue(func(rt *Runtime, this Value, args []Value) (Value, error) {
+		d, e := weakReceiver(this)
+		if e != nil {
+			return Undefined(), e
+		}
+		if len(args) < 2 || args[1].Kind() != KindFunction {
+			return Undefined(), &RuntimeError{Message: "WeakMap.getOrInsertComputed callback must be callable"}
+		}
+		if old, ok := d.get(args[0]); ok {
+			return old, nil
+		}
+		value, e := rt.Call(args[1], Undefined(), args[0])
+		if e != nil {
+			return Undefined(), e
+		}
+		if _, e = d.set(args[0], value); e != nil {
+			return Undefined(), e
+		}
+		return value, nil
+	})
 }
 func weakReceiver(v Value) (*weakMapData, error) {
 	if v.k != KindObject || v.o.weakmap == nil {

@@ -15,25 +15,25 @@ test requires. A `pass` includes valid negative tests, so this is runner
 coverage—not a claim of full ECMAScript feature support.
 
 **ECMA target:** ECMAScript 2025 (ES16), plus later features present in the pinned Test262 commit<br>
-**Coverage:** 11.57% (6230/53869 tests reached execution)<br>
-**Overall pass:** 9.19% (4951/53869)<br>
-**Pass among covered:** 79.47% (4951/6230)
+**Coverage:** 11.73% (6320/53869 tests reached execution)<br>
+**Overall pass:** 9.33% (5027/53869)<br>
+**Pass among covered:** 79.54% (5027/6320)
 
 | pass | fail | skip | unsupported | timeout | total |
 |---:|---:|---:|---:|---:|---:|
-| 4951 | 1279 | 0 | 47639 | 0 | 53869 |
+| 5027 | 1293 | 0 | 47549 | 0 | 53869 |
 
 ### By feature
 
 | feature | pass | fail | unsupported | timeout | total |
 |---|---:|---:|---:|---:|---:|
-| (unclassified) | 1993 | 762 | 16188 | 0 | 18943 |
+| (unclassified) | 1993 | 763 | 16187 | 0 | 18943 |
 | AggregateError | 0 | 0 | 31 | 0 | 31 |
 | Array.fromAsync | 0 | 0 | 95 | 0 | 95 |
 | Array.prototype.at | 0 | 0 | 12 | 0 | 12 |
 | Array.prototype.flat | 0 | 0 | 15 | 0 | 15 |
 | Array.prototype.flatMap | 0 | 0 | 21 | 0 | 21 |
-| Array.prototype.includes | 0 | 0 | 69 | 0 | 69 |
+| Array.prototype.includes | 2 | 0 | 67 | 0 | 69 |
 | Array.prototype.values | 0 | 0 | 4 | 0 | 4 |
 | ArrayBuffer | 2 | 0 | 276 | 0 | 278 |
 | Atomics | 6 | 0 | 380 | 0 | 386 |
@@ -86,37 +86,37 @@ coverage—not a claim of full ECMAScript feature support.
 | Promise.any | 1 | 0 | 91 | 0 | 92 |
 | Promise.prototype.finally | 1 | 0 | 28 | 0 | 29 |
 | Proxy | 14 | 1 | 464 | 0 | 479 |
-| Reflect | 26 | 0 | 452 | 0 | 478 |
+| Reflect | 27 | 1 | 450 | 0 | 478 |
 | Reflect.construct | 2 | 1 | 701 | 0 | 704 |
-| Reflect.set | 2 | 0 | 44 | 0 | 46 |
-| Reflect.setPrototypeOf | 3 | 0 | 20 | 0 | 23 |
+| Reflect.set | 2 | 1 | 43 | 0 | 46 |
+| Reflect.setPrototypeOf | 4 | 0 | 19 | 0 | 23 |
 | RegExp.escape | 0 | 0 | 21 | 0 | 21 |
 | Set | 18 | 0 | 20 | 0 | 38 |
 | ShadowRealm | 0 | 1 | 63 | 0 | 64 |
-| SharedArrayBuffer | 15 | 1 | 451 | 0 | 467 |
+| SharedArrayBuffer | 16 | 1 | 450 | 0 | 467 |
 | String.fromCodePoint | 3 | 0 | 19 | 0 | 22 |
 | String.prototype.at | 0 | 0 | 11 | 0 | 11 |
-| String.prototype.endsWith | 2 | 0 | 25 | 0 | 27 |
-| String.prototype.includes | 2 | 1 | 23 | 0 | 26 |
+| String.prototype.endsWith | 5 | 0 | 22 | 0 | 27 |
+| String.prototype.includes | 5 | 1 | 20 | 0 | 26 |
 | String.prototype.isWellFormed | 0 | 0 | 8 | 0 | 8 |
 | String.prototype.matchAll | 0 | 0 | 16 | 0 | 16 |
 | String.prototype.replaceAll | 0 | 0 | 41 | 0 | 41 |
 | String.prototype.toWellFormed | 0 | 0 | 8 | 0 | 8 |
 | String.prototype.trimEnd | 0 | 0 | 24 | 0 | 24 |
 | String.prototype.trimStart | 0 | 0 | 23 | 0 | 23 |
-| Symbol | 73 | 0 | 1421 | 0 | 1494 |
+| Symbol | 127 | 7 | 1360 | 0 | 1494 |
 | Symbol.asyncIterator | 0 | 0 | 538 | 0 | 538 |
-| Symbol.hasInstance | 0 | 0 | 17 | 0 | 17 |
-| Symbol.isConcatSpreadable | 0 | 0 | 34 | 0 | 34 |
-| Symbol.iterator | 1 | 0 | 1866 | 0 | 1867 |
+| Symbol.hasInstance | 2 | 0 | 15 | 0 | 17 |
+| Symbol.isConcatSpreadable | 1 | 0 | 33 | 0 | 34 |
+| Symbol.iterator | 2 | 0 | 1865 | 0 | 1867 |
 | Symbol.match | 1 | 0 | 87 | 0 | 88 |
-| Symbol.matchAll | 0 | 0 | 63 | 0 | 63 |
-| Symbol.prototype.description | 0 | 0 | 8 | 0 | 8 |
+| Symbol.matchAll | 1 | 0 | 62 | 0 | 63 |
+| Symbol.prototype.description | 0 | 2 | 6 | 0 | 8 |
 | Symbol.replace | 1 | 0 | 97 | 0 | 98 |
-| Symbol.search | 1 | 0 | 36 | 0 | 37 |
-| Symbol.species | 0 | 0 | 284 | 0 | 284 |
+| Symbol.search | 2 | 0 | 35 | 0 | 37 |
+| Symbol.species | 8 | 0 | 276 | 0 | 284 |
 | Symbol.split | 1 | 0 | 57 | 0 | 58 |
-| Symbol.toPrimitive | 4 | 0 | 229 | 0 | 233 |
+| Symbol.toPrimitive | 10 | 6 | 217 | 0 | 233 |
 | Symbol.toStringTag | 0 | 0 | 131 | 0 | 131 |
 | Symbol.unscopables | 0 | 0 | 45 | 0 | 45 |
 | Temporal | 0 | 0 | 6714 | 0 | 6714 |
@@ -126,7 +126,7 @@ coverage—not a claim of full ECMAScript feature support.
 | Uint32Array | 0 | 0 | 2 | 0 | 2 |
 | Uint8Array | 2 | 0 | 11 | 0 | 13 |
 | Uint8ClampedArray | 2 | 0 | 4 | 0 | 6 |
-| WeakMap | 22 | 0 | 57 | 0 | 79 |
+| WeakMap | 29 | 0 | 50 | 0 | 79 |
 | WeakRef | 0 | 4 | 33 | 0 | 37 |
 | WeakSet | 7 | 0 | 27 | 0 | 34 |
 | __getter__ | 0 | 0 | 27 | 0 | 27 |
@@ -134,7 +134,7 @@ coverage—not a claim of full ECMAScript feature support.
 | __setter__ | 0 | 0 | 27 | 0 | 27 |
 | align-detached-buffer-semantics-with-web-reality | 0 | 0 | 158 | 0 | 158 |
 | arbitrary-module-namespace-names | 0 | 0 | 16 | 0 | 16 |
-| array-find-from-last | 2 | 0 | 107 | 0 | 109 |
+| array-find-from-last | 4 | 0 | 105 | 0 | 109 |
 | array-grouping | 4 | 0 | 24 | 0 | 28 |
 | arraybuffer-transfer | 1 | 0 | 58 | 0 | 59 |
 | arrow-function | 64 | 0 | 885 | 0 | 949 |
@@ -164,7 +164,7 @@ coverage—not a claim of full ECMAScript feature support.
 | dynamic-import | 191 | 199 | 621 | 0 | 1011 |
 | error-cause | 0 | 0 | 5 | 0 | 5 |
 | error-stack-accessor | 0 | 0 | 35 | 0 | 35 |
-| explicit-resource-management | 48 | 20 | 415 | 0 | 483 |
+| explicit-resource-management | 49 | 20 | 414 | 0 | 483 |
 | exponentiation | 14 | 0 | 90 | 0 | 104 |
 | export-star-as-namespace-from-module | 0 | 0 | 19 | 0 | 19 |
 | for-in-order | 0 | 0 | 9 | 0 | 9 |
@@ -218,11 +218,11 @@ coverage—not a claim of full ECMAScript feature support.
 | stable-typedarray-sort | 0 | 0 | 1 | 0 | 1 |
 | string-trimming | 0 | 0 | 54 | 0 | 54 |
 | super | 3 | 2 | 14 | 0 | 19 |
-| symbols-as-weakmap-keys | 0 | 0 | 29 | 0 | 29 |
+| symbols-as-weakmap-keys | 1 | 0 | 28 | 0 | 29 |
 | tail-call-optimization | 0 | 0 | 35 | 0 | 35 |
 | template | 0 | 0 | 1 | 0 | 1 |
 | top-level-await | 0 | 0 | 277 | 0 | 277 |
 | u180e | 3 | 2 | 20 | 0 | 25 |
 | uint8array-base64 | 1 | 0 | 70 | 0 | 71 |
-| upsert | 10 | 0 | 62 | 0 | 72 |
+| upsert | 13 | 0 | 59 | 0 | 72 |
 | well-formed-json-stringify | 0 | 0 | 1 | 0 | 1 |
