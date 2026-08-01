@@ -18,6 +18,7 @@ import (
 type manifest struct {
 	Commit      string   `json:"commit"`
 	ECMAVersion string   `json:"ecmaVersion"`
+	ReportDate  string   `json:"reportDate"`
 	Tests       []string `json:"tests"`
 }
 type counts struct {
@@ -86,19 +87,22 @@ func main() {
 	junitOut := flag.String("junit", "test262-report.xml", "JUnit report")
 	summary := flag.String("summary", "", "summary output (defaults to GITHUB_STEP_SUMMARY)")
 	coverageOut := flag.String("coverage", "", "write the canonical coverage report")
-	reportDate := flag.String("report-date", "", "report date (YYYY-MM-DD; required with -coverage)")
+	reportDate := flag.String("report-date", "", "override the manifest report date (YYYY-MM-DD)")
 	steps := flag.Uint64("steps", 100000, "steps per test")
 	timeout := flag.Duration("timeout", 2*time.Second, "timeout per test")
 	baseline := flag.String("baseline", "", "full-run baseline used to reject coverage regressions")
-	baselineOut := flag.String("baseline-out", "", "write a deterministic full-run baseline without per-test results")
+	refreshBaselineFile := flag.Bool("refresh-baseline", false, "refresh -baseline after checking it for regressions")
 	flag.Parse()
+	if *refreshBaselineFile && *baseline == "" {
+		fatal(errors.New("-refresh-baseline requires -baseline"))
+	}
 	b, err := os.ReadFile(*selection)
 	fatal(err)
 	var m manifest
 	fatal(json.Unmarshal(b, &m))
-	if m.Commit == "" || m.ECMAVersion == "" {
-		fatal(errors.New("invalid selection manifest: missing commit or ecmaVersion"))
-	}
+	fatal(validateManifest(m))
+	effectiveReportDate, err := coverageReportDate(m.ReportDate, *reportDate)
+	fatal(err)
 	names := m.Tests
 	mode := "selection"
 	if *all {
@@ -137,27 +141,23 @@ func main() {
 	js.Skipped = rep.Counts.Skip + rep.Counts.Unsupported
 	rep.Coverage = calculateCoverage(rep.Counts)
 	if *baseline != "" {
-		rep.Regressions = compareBaseline(*baseline, rep)
+		var baselineErr error
+		if *refreshBaselineFile {
+			rep.Regressions, baselineErr = refreshBaseline(*baseline, rep)
+		} else {
+			rep.Regressions, baselineErr = compareBaseline(*baseline, rep)
+		}
+		if baselineErr != nil {
+			rep.Regressions = []string{"baseline: " + baselineErr.Error()}
+		}
 	}
-	writeJSON(*jsonOut, rep)
-	if *baselineOut != "" {
-		writeCanonicalJSON(*baselineOut, baselineSnapshot{
-			Commit: rep.Commit, ECMAVersion: rep.ECMAVersion, Mode: rep.Mode,
-			Counts: rep.Counts, ByFeature: rep.ByFeature, Coverage: rep.Coverage,
-		})
-	}
+	fatal(writeJSON(*jsonOut, rep))
 	xb, err := xml.MarshalIndent(js, "", "  ")
 	fatal(err)
 	fatal(os.WriteFile(*junitOut, append([]byte(xml.Header), xb...), 0644))
 	out := renderSummary(rep)
 	if *coverageOut != "" {
-		if *reportDate == "" {
-			fatal(errors.New("-report-date is required with -coverage"))
-		}
-		if _, err := time.Parse("2006-01-02", *reportDate); err != nil {
-			fatal(fmt.Errorf("invalid -report-date: %w", err))
-		}
-		fatal(os.WriteFile(*coverageOut, []byte(renderCoverage(rep, *reportDate)), 0644))
+		fatal(os.WriteFile(*coverageOut, []byte(renderCoverage(rep, effectiveReportDate)), 0644))
 	}
 	dest := *summary
 	if dest == "" {
@@ -171,6 +171,26 @@ func main() {
 	if (*baseline == "" && rep.Counts.Fail+rep.Counts.Timeout > 0) || len(rep.Regressions) > 0 {
 		os.Exit(1)
 	}
+}
+
+func validateManifest(m manifest) error {
+	if m.Commit == "" || m.ECMAVersion == "" || m.ReportDate == "" {
+		return errors.New("invalid selection manifest: missing commit, ecmaVersion, or reportDate")
+	}
+	if _, err := time.Parse("2006-01-02", m.ReportDate); err != nil {
+		return fmt.Errorf("invalid selection manifest reportDate: %w", err)
+	}
+	return nil
+}
+
+func coverageReportDate(manifestDate, override string) (string, error) {
+	if override == "" {
+		return manifestDate, nil
+	}
+	if _, err := time.Parse("2006-01-02", override); err != nil {
+		return "", fmt.Errorf("invalid -report-date: %w", err)
+	}
+	return override, nil
 }
 
 // inferredFeature gives tests without a Test262 `features` tag a stable,
@@ -189,14 +209,14 @@ func inferredFeature(name string) string {
 	return "path:other"
 }
 
-func compareBaseline(path string, actual report) []string {
+func compareBaseline(path string, actual report) ([]string, error) {
 	b, err := os.ReadFile(path)
 	if err != nil {
-		return []string{"baseline: " + err.Error()}
+		return nil, err
 	}
-	var expected report
+	var expected baselineSnapshot
 	if err := json.Unmarshal(b, &expected); err != nil {
-		return []string{"baseline: " + err.Error()}
+		return nil, err
 	}
 	var problems []string
 	if expected.Commit != actual.Commit {
@@ -227,7 +247,25 @@ func compareBaseline(path string, actual report) []string {
 			problems = append(problems, fmt.Sprintf("feature regressed: %s (want pass>=%d fail<=%d unsupported<=%d timeout<=%d total=%d; got %+v)", feature, want.Pass, want.Fail, want.Unsupported, want.Timeout, want.Total, got))
 		}
 	}
-	return problems
+	return problems, nil
+}
+
+func refreshBaseline(path string, actual report) ([]string, error) {
+	problems, err := compareBaseline(path, actual)
+	if err != nil {
+		return nil, err
+	}
+	if err := writeCanonicalJSON(path, snapshot(actual)); err != nil {
+		return nil, err
+	}
+	return problems, nil
+}
+
+func snapshot(r report) baselineSnapshot {
+	return baselineSnapshot{
+		Commit: r.Commit, ECMAVersion: r.ECMAVersion, Mode: r.Mode,
+		Counts: r.Counts, ByFeature: r.ByFeature, Coverage: r.Coverage,
+	}
 }
 
 func discover(root string) ([]string, error) {
@@ -532,17 +570,23 @@ func renderCoverage(r report, reportDate string) string {
 	fmt.Fprint(b, renderSummary(r))
 	return b.String()
 }
-func writeJSON(path string, v any) {
-	b, e := json.MarshalIndent(v, "", "  ")
-	fatal(e)
-	fatal(os.WriteFile(path, b, 0644))
+func writeJSON(path string, v any) error {
+	b, err := json.MarshalIndent(v, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, b, 0644)
 }
-func writeCanonicalJSON(path string, v any) {
+func writeCanonicalJSON(path string, v any) error {
 	b, err := json.Marshal(v)
-	fatal(err)
+	if err != nil {
+		return err
+	}
 	var canonical any
-	fatal(json.Unmarshal(b, &canonical))
-	writeJSON(path, canonical)
+	if err := json.Unmarshal(b, &canonical); err != nil {
+		return err
+	}
+	return writeJSON(path, canonical)
 }
 func fatal(e error) {
 	if e != nil {

@@ -4,7 +4,8 @@ on:
   push: {branches: [main]}
   workflow_dispatch:
 jobs:
-  smoke:
+  full-suite:
+    name: Full pinned Test262 suite
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -22,16 +23,14 @@ jobs:
       - name: Run complete pinned Test262 suite
         run: >-
           go run ./cmd/test262 -all -test262 test262-upstream
-          -baseline test262/full-baseline.json -timeout 100ms
+          -baseline test262/full-baseline.json -refresh-baseline -timeout 100ms
           -json test262-report.json -junit test262-report.xml
-          -baseline-out test262/full-baseline.json
-          -coverage COVERAGE.md -report-date 2026-08-01
+          -coverage COVERAGE.md
       - name: Verify committed coverage report and baseline
+        if: always()
         run: git diff --exit-code -- COVERAGE.md test262/full-baseline.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: test262-report
-          path: |
-            test262/full-baseline.json
-            test262-report.*
+          path: test262-report.*
