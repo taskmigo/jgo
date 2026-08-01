@@ -2,6 +2,7 @@ package gots
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"weak"
 )
@@ -45,6 +46,15 @@ func (v Value) String() string {
 	case KindBoolean:
 		return strconv.FormatBool(v.b)
 	case KindNumber:
+		if math.IsNaN(v.n) {
+			return "NaN"
+		}
+		if math.IsInf(v.n, 1) {
+			return "Infinity"
+		}
+		if math.IsInf(v.n, -1) {
+			return "-Infinity"
+		}
 		return strconv.FormatFloat(v.n, 'g', -1, 64)
 	case KindString:
 		return v.s

@@ -25,6 +25,14 @@ func TestRuntimeLanguage(t *testing.T) {
 		}
 	}
 }
+
+func TestTypeofAndNumericGlobals(t *testing.T) {
+	r := New()
+	v, err := r.RunString(`typeof missing + "," + typeof function(){} + "," + typeof NaN + "," + Infinity`)
+	if err != nil || v.String() != "undefined,function,number,Infinity" {
+		t.Fatalf("value=%q error=%v", v.String(), err)
+	}
+}
 func TestLimitsAndCancellation(t *testing.T) {
 	_, e := New(WithMaxSteps(20)).RunString(`while(true){}`)
 	if !errors.Is(e, ErrStepLimit) {

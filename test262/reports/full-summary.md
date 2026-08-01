@@ -16,13 +16,13 @@ coverage—not a claim of full ECMAScript feature support.
 
 | pass | fail | skip | unsupported | timeout | total |
 |---:|---:|---:|---:|---:|---:|
-| 4833 | 1232 | 0 | 47804 | 0 | 53869 |
+| 4951 | 1279 | 0 | 47639 | 0 | 53869 |
 
 ### By feature
 
 | feature | pass | fail | unsupported | timeout | total |
 |---|---:|---:|---:|---:|---:|
-| (unclassified) | 1874 | 744 | 16325 | 0 | 18943 |
+| (unclassified) | 1993 | 762 | 16188 | 0 | 18943 |
 | AggregateError | 0 | 0 | 31 | 0 | 31 |
 | Array.fromAsync | 0 | 0 | 95 | 0 | 95 |
 | Array.prototype.at | 0 | 0 | 12 | 0 | 12 |
@@ -31,10 +31,10 @@ coverage—not a claim of full ECMAScript feature support.
 | Array.prototype.includes | 0 | 0 | 69 | 0 | 69 |
 | Array.prototype.values | 0 | 0 | 4 | 0 | 4 |
 | ArrayBuffer | 2 | 0 | 276 | 0 | 278 |
-| Atomics | 4 | 0 | 382 | 0 | 386 |
+| Atomics | 6 | 0 | 380 | 0 | 386 |
 | Atomics.pause | 0 | 0 | 5 | 0 | 5 |
 | Atomics.waitAsync | 0 | 0 | 101 | 0 | 101 |
-| BigInt | 7 | 37 | 1457 | 0 | 1501 |
+| BigInt | 7 | 42 | 1452 | 0 | 1501 |
 | DataView | 0 | 0 | 193 | 0 | 193 |
 | DataView.prototype.getFloat32 | 0 | 0 | 7 | 0 | 7 |
 | DataView.prototype.getFloat64 | 0 | 0 | 5 | 0 | 5 |
@@ -45,13 +45,13 @@ coverage—not a claim of full ECMAScript feature support.
 | DataView.prototype.getUint32 | 0 | 0 | 7 | 0 | 7 |
 | DataView.prototype.setUint8 | 0 | 0 | 56 | 0 | 56 |
 | Error.isError | 0 | 0 | 13 | 0 | 13 |
-| FinalizationRegistry | 0 | 0 | 49 | 0 | 49 |
+| FinalizationRegistry | 0 | 3 | 46 | 0 | 49 |
 | Float16Array | 0 | 0 | 51 | 0 | 51 |
-| Float32Array | 0 | 0 | 7 | 0 | 7 |
-| Float64Array | 0 | 0 | 7 | 0 | 7 |
+| Float32Array | 2 | 0 | 5 | 0 | 7 |
+| Float64Array | 2 | 0 | 5 | 0 | 7 |
 | Int16Array | 0 | 0 | 2 | 0 | 2 |
 | Int32Array | 0 | 0 | 4 | 0 | 4 |
-| Int8Array | 0 | 0 | 38 | 0 | 38 |
+| Int8Array | 2 | 0 | 36 | 0 | 38 |
 | Intl-enumeration | 0 | 0 | 35 | 0 | 35 |
 | Intl.DateTimeFormat-datetimestyle | 0 | 0 | 16 | 0 | 16 |
 | Intl.DateTimeFormat-dayPeriod | 0 | 0 | 12 | 0 | 12 |
@@ -80,14 +80,14 @@ coverage—not a claim of full ECMAScript feature support.
 | Promise.allSettled | 2 | 0 | 100 | 0 | 102 |
 | Promise.any | 1 | 0 | 91 | 0 | 92 |
 | Promise.prototype.finally | 1 | 0 | 28 | 0 | 29 |
-| Proxy | 14 | 0 | 465 | 0 | 479 |
+| Proxy | 14 | 1 | 464 | 0 | 479 |
 | Reflect | 26 | 0 | 452 | 0 | 478 |
-| Reflect.construct | 2 | 0 | 702 | 0 | 704 |
+| Reflect.construct | 2 | 1 | 701 | 0 | 704 |
 | Reflect.set | 2 | 0 | 44 | 0 | 46 |
 | Reflect.setPrototypeOf | 3 | 0 | 20 | 0 | 23 |
 | RegExp.escape | 0 | 0 | 21 | 0 | 21 |
 | Set | 18 | 0 | 20 | 0 | 38 |
-| ShadowRealm | 0 | 0 | 64 | 0 | 64 |
+| ShadowRealm | 0 | 1 | 63 | 0 | 64 |
 | SharedArrayBuffer | 15 | 1 | 451 | 0 | 467 |
 | String.fromCodePoint | 3 | 0 | 19 | 0 | 22 |
 | String.prototype.at | 0 | 0 | 11 | 0 | 11 |
@@ -115,14 +115,14 @@ coverage—not a claim of full ECMAScript feature support.
 | Symbol.toStringTag | 0 | 0 | 131 | 0 | 131 |
 | Symbol.unscopables | 0 | 0 | 45 | 0 | 45 |
 | Temporal | 0 | 0 | 6714 | 0 | 6714 |
-| TypedArray | 10 | 0 | 2514 | 0 | 2524 |
+| TypedArray | 12 | 9 | 2503 | 0 | 2524 |
 | TypedArray.prototype.at | 0 | 0 | 13 | 0 | 13 |
-| Uint16Array | 0 | 0 | 6 | 0 | 6 |
+| Uint16Array | 2 | 0 | 4 | 0 | 6 |
 | Uint32Array | 0 | 0 | 2 | 0 | 2 |
-| Uint8Array | 0 | 0 | 13 | 0 | 13 |
-| Uint8ClampedArray | 0 | 0 | 6 | 0 | 6 |
+| Uint8Array | 2 | 0 | 11 | 0 | 13 |
+| Uint8ClampedArray | 2 | 0 | 4 | 0 | 6 |
 | WeakMap | 22 | 0 | 57 | 0 | 79 |
-| WeakRef | 0 | 0 | 37 | 0 | 37 |
+| WeakRef | 0 | 4 | 33 | 0 | 37 |
 | WeakSet | 7 | 0 | 27 | 0 | 34 |
 | __getter__ | 0 | 0 | 27 | 0 | 27 |
 | __proto__ | 0 | 0 | 20 | 0 | 20 |
@@ -156,10 +156,10 @@ coverage—not a claim of full ECMAScript feature support.
 | default-parameters | 206 | 13 | 2050 | 0 | 2269 |
 | destructuring-assignment | 90 | 0 | 51 | 0 | 141 |
 | destructuring-binding | 519 | 0 | 6118 | 0 | 6637 |
-| dynamic-import | 194 | 196 | 621 | 0 | 1011 |
+| dynamic-import | 191 | 199 | 621 | 0 | 1011 |
 | error-cause | 0 | 0 | 5 | 0 | 5 |
 | error-stack-accessor | 0 | 0 | 35 | 0 | 35 |
-| explicit-resource-management | 48 | 18 | 417 | 0 | 483 |
+| explicit-resource-management | 48 | 20 | 415 | 0 | 483 |
 | exponentiation | 14 | 0 | 90 | 0 | 104 |
 | export-star-as-namespace-from-module | 0 | 0 | 19 | 0 | 19 |
 | for-in-order | 0 | 0 | 9 | 0 | 9 |
@@ -176,7 +176,7 @@ coverage—not a claim of full ECMAScript feature support.
 | import.meta | 1 | 1 | 21 | 0 | 23 |
 | intl-normative-optional | 0 | 0 | 8 | 0 | 8 |
 | iterator-chunking | 0 | 0 | 78 | 0 | 78 |
-| iterator-helpers | 1 | 0 | 566 | 0 | 567 |
+| iterator-helpers | 1 | 2 | 564 | 0 | 567 |
 | iterator-includes | 1 | 0 | 43 | 0 | 44 |
 | iterator-sequencing | 0 | 0 | 32 | 0 | 32 |
 | joint-iteration | 0 | 0 | 82 | 0 | 82 |
@@ -207,7 +207,7 @@ coverage—not a claim of full ECMAScript feature support.
 | resizable-arraybuffer | 12 | 2 | 451 | 0 | 465 |
 | rest-parameters | 87 | 9 | 0 | 0 | 96 |
 | set-methods | 0 | 0 | 193 | 0 | 193 |
-| source-phase-imports | 69 | 82 | 102 | 0 | 253 |
+| source-phase-imports | 67 | 84 | 102 | 0 | 253 |
 | source-phase-imports-module-source | 39 | 28 | 42 | 0 | 109 |
 | stable-array-sort | 0 | 0 | 4 | 0 | 4 |
 | stable-typedarray-sort | 0 | 0 | 1 | 0 | 1 |

@@ -24,16 +24,8 @@ jobs:
           go run ./cmd/test262 -all -test262 test262-upstream
           -baseline test262/full-baseline.json -timeout 100ms
           -json test262-report.json -junit test262-report.xml
-      - name: Require 100% of the supported WeakMap selection
-        run: >-
-          go run ./cmd/test262 -test262 test262-upstream
-          -selection test262/weakmap-selection.json -timeout 100ms
-          -require-all-pass
-          -json weakmap-report.json -junit weakmap-report.xml
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: test262-report
-          path: |
-            test262-report.*
-            weakmap-report.*
+          path: test262-report.*

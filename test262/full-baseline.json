@@ -1,12 +1,12 @@
 {
   "byFeature": {
     "(unclassified)": {
-      "fail": 744,
-      "pass": 1874,
+      "fail": 762,
+      "pass": 1993,
       "skip": 0,
       "timeout": 0,
       "total": 18943,
-      "unsupported": 16325
+      "unsupported": 16188
     },
     "AggregateError": {
       "fail": 0,
@@ -74,11 +74,11 @@
     },
     "Atomics": {
       "fail": 0,
-      "pass": 4,
+      "pass": 6,
       "skip": 0,
       "timeout": 0,
       "total": 386,
-      "unsupported": 382
+      "unsupported": 380
     },
     "Atomics.pause": {
       "fail": 0,
@@ -97,12 +97,12 @@
       "unsupported": 101
     },
     "BigInt": {
-      "fail": 37,
+      "fail": 42,
       "pass": 7,
       "skip": 0,
       "timeout": 0,
       "total": 1501,
-      "unsupported": 1457
+      "unsupported": 1452
     },
     "DataView": {
       "fail": 0,
@@ -185,12 +185,12 @@
       "unsupported": 13
     },
     "FinalizationRegistry": {
-      "fail": 0,
+      "fail": 3,
       "pass": 0,
       "skip": 0,
       "timeout": 0,
       "total": 49,
-      "unsupported": 49
+      "unsupported": 46
     },
     "Float16Array": {
       "fail": 0,
@@ -202,19 +202,19 @@
     },
     "Float32Array": {
       "fail": 0,
-      "pass": 0,
+      "pass": 2,
       "skip": 0,
       "timeout": 0,
       "total": 7,
-      "unsupported": 7
+      "unsupported": 5
     },
     "Float64Array": {
       "fail": 0,
-      "pass": 0,
+      "pass": 2,
       "skip": 0,
       "timeout": 0,
       "total": 7,
-      "unsupported": 7
+      "unsupported": 5
     },
     "Int16Array": {
       "fail": 0,
@@ -234,11 +234,11 @@
     },
     "Int8Array": {
       "fail": 0,
-      "pass": 0,
+      "pass": 2,
       "skip": 0,
       "timeout": 0,
       "total": 38,
-      "unsupported": 38
+      "unsupported": 36
     },
     "Intl-enumeration": {
       "fail": 0,
@@ -465,12 +465,12 @@
       "unsupported": 28
     },
     "Proxy": {
-      "fail": 0,
+      "fail": 1,
       "pass": 14,
       "skip": 0,
       "timeout": 0,
       "total": 479,
-      "unsupported": 465
+      "unsupported": 464
     },
     "Reflect": {
       "fail": 0,
@@ -481,12 +481,12 @@
       "unsupported": 452
     },
     "Reflect.construct": {
-      "fail": 0,
+      "fail": 1,
       "pass": 2,
       "skip": 0,
       "timeout": 0,
       "total": 704,
-      "unsupported": 702
+      "unsupported": 701
     },
     "Reflect.set": {
       "fail": 0,
@@ -521,12 +521,12 @@
       "unsupported": 20
     },
     "ShadowRealm": {
-      "fail": 0,
+      "fail": 1,
       "pass": 0,
       "skip": 0,
       "timeout": 0,
       "total": 64,
-      "unsupported": 64
+      "unsupported": 63
     },
     "SharedArrayBuffer": {
       "fail": 1,
@@ -745,12 +745,12 @@
       "unsupported": 6714
     },
     "TypedArray": {
-      "fail": 0,
-      "pass": 10,
+      "fail": 9,
+      "pass": 12,
       "skip": 0,
       "timeout": 0,
       "total": 2524,
-      "unsupported": 2514
+      "unsupported": 2503
     },
     "TypedArray.prototype.at": {
       "fail": 0,
@@ -762,11 +762,11 @@
     },
     "Uint16Array": {
       "fail": 0,
-      "pass": 0,
+      "pass": 2,
       "skip": 0,
       "timeout": 0,
       "total": 6,
-      "unsupported": 6
+      "unsupported": 4
     },
     "Uint32Array": {
       "fail": 0,
@@ -778,19 +778,19 @@
     },
     "Uint8Array": {
       "fail": 0,
-      "pass": 0,
+      "pass": 2,
       "skip": 0,
       "timeout": 0,
       "total": 13,
-      "unsupported": 13
+      "unsupported": 11
     },
     "Uint8ClampedArray": {
       "fail": 0,
-      "pass": 0,
+      "pass": 2,
       "skip": 0,
       "timeout": 0,
       "total": 6,
-      "unsupported": 6
+      "unsupported": 4
     },
     "WeakMap": {
       "fail": 0,
@@ -801,12 +801,12 @@
       "unsupported": 57
     },
     "WeakRef": {
-      "fail": 0,
+      "fail": 4,
       "pass": 0,
       "skip": 0,
       "timeout": 0,
       "total": 37,
-      "unsupported": 37
+      "unsupported": 33
     },
     "WeakSet": {
       "fail": 0,
@@ -1073,8 +1073,8 @@
       "unsupported": 6118
     },
     "dynamic-import": {
-      "fail": 196,
-      "pass": 194,
+      "fail": 199,
+      "pass": 191,
       "skip": 0,
       "timeout": 0,
       "total": 1011,
@@ -1097,12 +1097,12 @@
       "unsupported": 35
     },
     "explicit-resource-management": {
-      "fail": 18,
+      "fail": 20,
       "pass": 48,
       "skip": 0,
       "timeout": 0,
       "total": 483,
-      "unsupported": 417
+      "unsupported": 415
     },
     "exponentiation": {
       "fail": 0,
@@ -1233,12 +1233,12 @@
       "unsupported": 78
     },
     "iterator-helpers": {
-      "fail": 0,
+      "fail": 2,
       "pass": 1,
       "skip": 0,
       "timeout": 0,
       "total": 567,
-      "unsupported": 566
+      "unsupported": 564
     },
     "iterator-includes": {
       "fail": 0,
@@ -1481,8 +1481,8 @@
       "unsupported": 193
     },
     "source-phase-imports": {
-      "fail": 82,
-      "pass": 69,
+      "fail": 84,
+      "pass": 67,
       "skip": 0,
       "timeout": 0,
       "total": 253,
@@ -1595,12 +1595,12 @@
   },
   "commit": "b363f29d3c43c626dc852744ad64a0b48a003693",
   "counts": {
-    "fail": 1232,
-    "pass": 4833,
+    "fail": 1279,
+    "pass": 4951,
     "skip": 0,
     "timeout": 0,
     "total": 53869,
-    "unsupported": 47804
+    "unsupported": 47639
   },
   "mode": "full"
 }

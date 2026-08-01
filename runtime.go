@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"reflect"
 	"runtime"
 	"time"
@@ -99,6 +100,8 @@ func New(options ...Option) *Runtime {
 	})
 	weakMapConstructor.f.constructOnly = true
 	r.global.define("WeakMap", weakMapConstructor, false)
+	r.global.define("NaN", Number(math.NaN()), true)
+	r.global.define("Infinity", Number(math.Inf(1)), true)
 	return r
 }
 func (r *Runtime) Compile(s string) (*Program, error) {
@@ -284,6 +287,31 @@ func (r *Runtime) eval(x expr, e *environment) (Value, error) {
 	case *functionExpr:
 		return r.makeFunction(n, e), nil
 	case *unaryExpr:
+		if n.op == TokTypeof {
+			if id, ok := n.right.(*identExpr); ok {
+				if _, found := e.get(id.name); !found {
+					return String("undefined"), nil
+				}
+			}
+			v, x := r.eval(n.right, e)
+			if x != nil {
+				return Undefined(), x
+			}
+			switch v.k {
+			case KindUndefined:
+				return String("undefined"), nil
+			case KindBoolean:
+				return String("boolean"), nil
+			case KindNumber:
+				return String("number"), nil
+			case KindString:
+				return String("string"), nil
+			case KindFunction:
+				return String("function"), nil
+			default:
+				return String("object"), nil
+			}
+		}
 		v, x := r.eval(n.right, e)
 		if x != nil {
 			return Undefined(), x

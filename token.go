@@ -29,6 +29,7 @@ const (
 	TokNull      TokenType = "null"
 	TokUndefined TokenType = "undefined"
 	TokNew       TokenType = "new"
+	TokTypeof    TokenType = "typeof"
 	TokLParen    TokenType = "("
 	TokRParen    TokenType = ")"
 	TokLBrace    TokenType = "{"

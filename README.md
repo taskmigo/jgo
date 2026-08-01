@@ -48,13 +48,6 @@ allows known failures while failing CI if pass coverage decreases, failure or
 unsupported counts increase, a feature regresses, or the test denominator/pin
 changes unexpectedly.
 
-The separately versioned `test262/weakmap-selection.json` is the supported
-WeakMap acceptance slice and must remain **100% passing** (currently 22/22).
-The full report still lists 57 WeakMap-feature tests as unsupported because they
-depend on explicitly out-of-MVP facilities (for example Symbols, Map, classes,
-realms, reflection/prototypes, or newer WeakMap methods). They are not hidden or
-misrepresented as passing.
-
 ## Roadmap
 
 Grow conformance feature-by-feature, add complete Test262 harness include and

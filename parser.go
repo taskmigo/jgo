@@ -166,7 +166,7 @@ func (p *parser) binary(min int) (expr, error) {
 	return left, nil
 }
 func (p *parser) unary() (expr, error) {
-	if p.match(TokBang, TokMinus, TokPlus) {
+	if p.match(TokBang, TokMinus, TokPlus, TokTypeof) {
 		o := p.prev()
 		r, e := p.unary()
 		if e != nil {

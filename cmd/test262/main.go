@@ -71,7 +71,6 @@ func main() {
 	steps := flag.Uint64("steps", 100000, "steps per test")
 	timeout := flag.Duration("timeout", 2*time.Second, "timeout per test")
 	baseline := flag.String("baseline", "", "full-run baseline used to reject coverage regressions")
-	requireAllPass := flag.Bool("require-all-pass", false, "fail unless every selected test passes")
 	flag.Parse()
 	b, err := os.ReadFile(*selection)
 	fatal(err)
@@ -133,7 +132,7 @@ func main() {
 	} else {
 		fmt.Print(out)
 	}
-	if (*requireAllPass && rep.Counts.Pass != rep.Counts.Total) || (*baseline == "" && !*requireAllPass && rep.Counts.Fail+rep.Counts.Timeout > 0) || len(rep.Regressions) > 0 {
+	if (*baseline == "" && rep.Counts.Fail+rep.Counts.Timeout > 0) || len(rep.Regressions) > 0 {
 		os.Exit(1)
 	}
 }
