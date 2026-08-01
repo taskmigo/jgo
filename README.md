@@ -32,6 +32,11 @@ Reports contain the selection denominator and separate pass, fail, skip, and
 unsupported counts. No aggregate result should be interpreted as full
 ECMAScript compatibility. Go 1.25 or later is required.
 
+Every report identifies the ECMA target and pinned Test262 commit, and shows
+three distinct percentages: tests covered (not unsupported), passes over the
+full denominator, and passes among covered tests. This avoids presenting the
+covered-test pass rate as overall ECMAScript conformance.
+
 To measure the entire pinned Test262 checkout, use `-all`; the command returns a
 non-zero status when it finds failures:
 

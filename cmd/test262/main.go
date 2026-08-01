@@ -16,8 +16,9 @@ import (
 )
 
 type manifest struct {
-	Commit string   `json:"commit"`
-	Tests  []string `json:"tests"`
+	Commit      string   `json:"commit"`
+	ECMAVersion string   `json:"ecmaVersion"`
+	Tests       []string `json:"tests"`
 }
 type counts struct {
 	Pass        int `json:"pass"`
@@ -36,11 +37,19 @@ type result struct {
 }
 type report struct {
 	Commit      string            `json:"commit"`
+	ECMAVersion string            `json:"ecmaVersion"`
 	Mode        string            `json:"mode"`
 	Counts      counts            `json:"counts"`
 	ByFeature   map[string]counts `json:"byFeature"`
 	Results     []result          `json:"results"`
 	Regressions []string          `json:"regressions,omitempty"`
+	Coverage    coverage          `json:"coverage"`
+}
+type coverage struct {
+	CoveredTests       int     `json:"coveredTests"`
+	CoveragePercent    float64 `json:"coveragePercent"`
+	OverallPassPercent float64 `json:"overallPassPercent"`
+	CoveredPassPercent float64 `json:"coveredPassPercent"`
 }
 type suite struct {
 	XMLName                  xml.Name   `xml:"testsuite"`
@@ -76,8 +85,8 @@ func main() {
 	fatal(err)
 	var m manifest
 	fatal(json.Unmarshal(b, &m))
-	if m.Commit == "" {
-		fatal(errors.New("invalid selection manifest: missing commit"))
+	if m.Commit == "" || m.ECMAVersion == "" {
+		fatal(errors.New("invalid selection manifest: missing commit or ecmaVersion"))
 	}
 	names := m.Tests
 	mode := "selection"
@@ -89,7 +98,7 @@ func main() {
 	if len(names) == 0 {
 		fatal(errors.New("no tests selected"))
 	}
-	rep := report{Commit: m.Commit, Mode: mode, ByFeature: map[string]counts{}}
+	rep := report{Commit: m.Commit, ECMAVersion: m.ECMAVersion, Mode: mode, ByFeature: map[string]counts{}}
 	js := suite{}
 	for _, name := range names {
 		res := runOne(*root, name, *steps, *timeout)
@@ -115,6 +124,7 @@ func main() {
 	js.Tests = rep.Counts.Total
 	js.Failures = rep.Counts.Fail + rep.Counts.Timeout
 	js.Skipped = rep.Counts.Skip + rep.Counts.Unsupported
+	rep.Coverage = calculateCoverage(rep.Counts)
 	if *baseline != "" {
 		rep.Regressions = compareBaseline(*baseline, rep)
 	}
@@ -434,10 +444,22 @@ func add(c *counts, status string) {
 		c.Timeout++
 	}
 }
+func calculateCoverage(c counts) coverage {
+	covered := c.Pass + c.Fail + c.Timeout
+	result := coverage{CoveredTests: covered}
+	if c.Total > 0 {
+		result.CoveragePercent = 100 * float64(covered) / float64(c.Total)
+		result.OverallPassPercent = 100 * float64(c.Pass) / float64(c.Total)
+	}
+	if covered > 0 {
+		result.CoveredPassPercent = 100 * float64(c.Pass) / float64(covered)
+	}
+	return result
+}
 func renderSummary(r report) string {
 	c := r.Counts
 	b := &strings.Builder{}
-	fmt.Fprintf(b, "## Test262 %s (%s)\n\n| pass | fail | skip | unsupported | timeout | total |\n|---:|---:|---:|---:|---:|---:|\n| %d | %d | %d | %d | %d | %d |\n\n### By feature\n\n| feature | pass | fail | unsupported | timeout | total |\n|---|---:|---:|---:|---:|---:|\n", r.Commit, r.Mode, c.Pass, c.Fail, c.Skip, c.Unsupported, c.Timeout, c.Total)
+	fmt.Fprintf(b, "## Test262 %s (%s)\n\n**ECMA target:** %s<br>\n**Coverage:** %.2f%% (%d/%d tests reached execution)<br>\n**Overall pass:** %.2f%% (%d/%d)<br>\n**Pass among covered:** %.2f%% (%d/%d)\n\n| pass | fail | skip | unsupported | timeout | total |\n|---:|---:|---:|---:|---:|---:|\n| %d | %d | %d | %d | %d | %d |\n\n### By feature\n\n| feature | pass | fail | unsupported | timeout | total |\n|---|---:|---:|---:|---:|---:|\n", r.Commit, r.Mode, r.ECMAVersion, r.Coverage.CoveragePercent, r.Coverage.CoveredTests, c.Total, r.Coverage.OverallPassPercent, c.Pass, c.Total, r.Coverage.CoveredPassPercent, c.Pass, r.Coverage.CoveredTests, c.Pass, c.Fail, c.Skip, c.Unsupported, c.Timeout, c.Total)
 	keys := make([]string, 0, len(r.ByFeature))
 	for k := range r.ByFeature {
 		keys = append(keys, k)

@@ -1602,5 +1602,12 @@
     "total": 53869,
     "unsupported": 47639
   },
+  "coverage": {
+    "coveragePercent": 11.565093096214891,
+    "coveredPassPercent": 79.47030497592296,
+    "coveredTests": 6230,
+    "overallPassPercent": 9.190814754311385
+  },
+  "ecmaVersion": "ECMAScript 2025 (ES16), plus later features present in the pinned Test262 commit",
   "mode": "full"
 }

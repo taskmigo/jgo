@@ -39,6 +39,13 @@ func TestCompareBaselineRejectsCoverageRegression(t *testing.T) {
 	}
 }
 
+func TestCalculateCoverage(t *testing.T) {
+	got := calculateCoverage(counts{Pass: 75, Fail: 5, Unsupported: 20, Total: 100})
+	if got.CoveredTests != 80 || got.CoveragePercent != 80 || got.OverallPassPercent != 75 || got.CoveredPassPercent != 93.75 {
+		t.Fatalf("unexpected coverage: %+v", got)
+	}
+}
+
 func TestDiscover(t *testing.T) {
 	root := filepath.Join(t.TempDir(), "test")
 	if err := os.MkdirAll(filepath.Join(root, "language"), 0755); err != nil {

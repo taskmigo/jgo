@@ -14,6 +14,11 @@ The command exits non-zero without `-baseline` when unexpected failures exist.
 test requires. A `pass` includes valid negative tests, so this is runner
 coverage—not a claim of full ECMAScript feature support.
 
+**ECMA target:** ECMAScript 2025 (ES16), plus later features present in the pinned Test262 commit<br>
+**Coverage:** 11.57% (6230/53869 tests reached execution)<br>
+**Overall pass:** 9.19% (4951/53869)<br>
+**Pass among covered:** 79.47% (4951/6230)
+
 | pass | fail | skip | unsupported | timeout | total |
 |---:|---:|---:|---:|---:|---:|
 | 4951 | 1279 | 0 | 47639 | 0 | 53869 |
