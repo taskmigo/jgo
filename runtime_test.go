@@ -54,6 +54,13 @@ func TestForLoopLexicalIterationsAndComma(t *testing.T) {
 		t.Fatalf("value=%v error=%v", v, err)
 	}
 }
+func TestArrayStringAndObjectBuiltins(t *testing.T) {
+	r := New()
+	v, err := r.RunString(`Array.of(1,2,3).at(-1) === 3 && Array.from("ab").includes("b") && "  gots  ".trimStart().trimEnd().padStart(6,"-").replaceAll("-","+") === "++gots" && Object.hasOwn({x:1},"x") && globalThis.globalThis === globalThis`)
+	if err != nil || !v.Bool() {
+		t.Fatalf("value=%v error=%v", v, err)
+	}
+}
 func TestLimitsAndCancellation(t *testing.T) {
 	_, e := New(WithMaxSteps(20)).RunString(`while(true){}`)
 	if !errors.Is(e, ErrStepLimit) {

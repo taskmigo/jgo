@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"strconv"
+	"strings"
 	"weak"
 )
 
@@ -174,13 +175,148 @@ func identity(v Value) (weak.Pointer[weakIdentity], *weakIdentity, bool) {
 func property(v Value, key string) (Value, bool) {
 	if v.k == KindObject {
 		x, ok := v.o.props[key]
-		return x, ok
+		if ok {
+			return x, true
+		}
 	}
 	if v.k == KindFunction {
 		x, ok := v.f.props[key]
 		return x, ok
 	}
+	if v.k == KindString {
+		runes := []rune(v.s)
+		if key == "length" {
+			return Number(float64(len(runes))), true
+		}
+		switch key {
+		case "at":
+			return nativeValue(func(_ *Runtime, _ Value, args []Value) (Value, error) {
+				i := 0
+				if len(args) > 0 {
+					i = int(number(args[0]))
+				}
+				if i < 0 {
+					i += len(runes)
+				}
+				if i < 0 || i >= len(runes) {
+					return Undefined(), nil
+				}
+				return String(string(runes[i])), nil
+			}), true
+		case "includes":
+			return stringSearch(v.s, func(s, q string, n int) bool { return strings.Contains(s[n:], q) }), true
+		case "startsWith":
+			return stringSearch(v.s, func(s, q string, n int) bool { return strings.HasPrefix(s[n:], q) }), true
+		case "endsWith":
+			return stringSearch(v.s, func(s, q string, n int) bool {
+				if n == 0 || n > len(s) {
+					n = len(s)
+				}
+				return strings.HasSuffix(s[:n], q)
+			}), true
+		case "repeat":
+			return nativeValue(func(_ *Runtime, _ Value, args []Value) (Value, error) {
+				n := 0
+				if len(args) > 0 {
+					n = int(number(args[0]))
+				}
+				if n < 0 {
+					return Undefined(), &RuntimeError{Message: "invalid repeat count"}
+				}
+				return String(strings.Repeat(v.s, n)), nil
+			}), true
+		case "padStart", "padEnd":
+			start := key == "padStart"
+			return nativeValue(func(_ *Runtime, _ Value, args []Value) (Value, error) {
+				target := 0
+				if len(args) > 0 {
+					target = int(number(args[0]))
+				}
+				fill := " "
+				if len(args) > 1 {
+					fill = args[1].String()
+				}
+				if len(v.s) >= target || fill == "" {
+					return v, nil
+				}
+				need := target - len(v.s)
+				padding := strings.Repeat(fill, (need+len(fill)-1)/len(fill))[:need]
+				if start {
+					return String(padding + v.s), nil
+				}
+				return String(v.s + padding), nil
+			}), true
+		case "trimStart":
+			return nativeValue(func(_ *Runtime, _ Value, _ []Value) (Value, error) {
+				return String(strings.TrimLeftFunc(v.s, func(r rune) bool { return r == ' ' || r == '\n' || r == '\t' || r == '\r' })), nil
+			}), true
+		case "trimEnd":
+			return nativeValue(func(_ *Runtime, _ Value, _ []Value) (Value, error) {
+				return String(strings.TrimRightFunc(v.s, func(r rune) bool { return r == ' ' || r == '\n' || r == '\t' || r == '\r' })), nil
+			}), true
+		case "replaceAll":
+			return nativeValue(func(_ *Runtime, _ Value, args []Value) (Value, error) {
+				if len(args) < 2 {
+					return v, nil
+				}
+				return String(strings.ReplaceAll(v.s, args[0].String(), args[1].String())), nil
+			}), true
+		}
+	}
+	if v.k == KindObject && v.o.array {
+		switch key {
+		case "at":
+			return nativeValue(func(_ *Runtime, _ Value, args []Value) (Value, error) {
+				n := int(number(v.o.props["length"]))
+				i := 0
+				if len(args) > 0 {
+					i = int(number(args[0]))
+				}
+				if i < 0 {
+					i += n
+				}
+				if i < 0 || i >= n {
+					return Undefined(), nil
+				}
+				return v.o.props[strconv.Itoa(i)], nil
+			}), true
+		case "includes":
+			return nativeValue(func(_ *Runtime, _ Value, args []Value) (Value, error) {
+				if len(args) == 0 {
+					return Boolean(false), nil
+				}
+				n := int(number(v.o.props["length"]))
+				for i := 0; i < n; i++ {
+					if SameValue(v.o.props[strconv.Itoa(i)], args[0]) {
+						return Boolean(true), nil
+					}
+				}
+				return Boolean(false), nil
+			}), true
+		}
+		return Undefined(), false
+	}
 	return Undefined(), false
+}
+
+func stringSearch(receiver string, search func(string, string, int) bool) Value {
+	return nativeValue(func(_ *Runtime, _ Value, args []Value) (Value, error) {
+		query := "undefined"
+		if len(args) > 0 {
+			query = args[0].String()
+		}
+		start := 0
+		if len(args) > 1 {
+			start = int(number(args[1]))
+			if start < 0 {
+				start = 0
+			}
+			if start > len(receiver) {
+				start = len(receiver)
+			}
+		}
+		return Boolean(search(receiver, query, start)), nil
+	})
 }
 func setProperty(v Value, key string, x Value) error {
 	if v.k != KindObject {

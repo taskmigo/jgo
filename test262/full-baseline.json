@@ -17,36 +17,36 @@
       "unsupported": 95
     },
     "Array.prototype.at": {
-      "fail": 0,
+      "fail": 2,
       "pass": 0,
       "skip": 0,
       "timeout": 0,
       "total": 12,
-      "unsupported": 12
+      "unsupported": 10
     },
     "Array.prototype.flat": {
-      "fail": 0,
+      "fail": 2,
       "pass": 0,
       "skip": 0,
       "timeout": 0,
       "total": 15,
-      "unsupported": 15
+      "unsupported": 13
     },
     "Array.prototype.flatMap": {
-      "fail": 0,
+      "fail": 4,
       "pass": 0,
       "skip": 0,
       "timeout": 0,
       "total": 21,
-      "unsupported": 21
+      "unsupported": 17
     },
     "Array.prototype.includes": {
-      "fail": 0,
-      "pass": 2,
+      "fail": 7,
+      "pass": 5,
       "skip": 0,
       "timeout": 0,
       "total": 69,
-      "unsupported": 67
+      "unsupported": 57
     },
     "Array.prototype.values": {
       "fail": 0,
@@ -401,20 +401,20 @@
       "unsupported": 10
     },
     "Object.fromEntries": {
-      "fail": 0,
+      "fail": 2,
       "pass": 0,
       "skip": 0,
       "timeout": 0,
       "total": 25,
-      "unsupported": 25
+      "unsupported": 23
     },
     "Object.hasOwn": {
-      "fail": 0,
-      "pass": 2,
+      "fail": 2,
+      "pass": 5,
       "skip": 0,
       "timeout": 0,
       "total": 62,
-      "unsupported": 60
+      "unsupported": 55
     },
     "Object.is": {
       "fail": 0,
@@ -545,20 +545,20 @@
       "unsupported": 11
     },
     "String.prototype.endsWith": {
-      "fail": 0,
-      "pass": 5,
+      "fail": 2,
+      "pass": 16,
       "skip": 0,
       "timeout": 0,
       "total": 27,
-      "unsupported": 22
+      "unsupported": 9
     },
     "String.prototype.includes": {
-      "fail": 1,
-      "pass": 5,
+      "fail": 4,
+      "pass": 14,
       "skip": 0,
       "timeout": 0,
       "total": 26,
-      "unsupported": 20
+      "unsupported": 8
     },
     "String.prototype.isWellFormed": {
       "fail": 0,
@@ -577,12 +577,12 @@
       "unsupported": 16
     },
     "String.prototype.replaceAll": {
-      "fail": 0,
-      "pass": 0,
+      "fail": 6,
+      "pass": 4,
       "skip": 0,
       "timeout": 0,
       "total": 41,
-      "unsupported": 41
+      "unsupported": 31
     },
     "String.prototype.toWellFormed": {
       "fail": 0,
@@ -609,12 +609,12 @@
       "unsupported": 23
     },
     "Symbol": {
-      "fail": 5,
-      "pass": 120,
+      "fail": 18,
+      "pass": 115,
       "skip": 0,
       "timeout": 0,
       "total": 1494,
-      "unsupported": 1369
+      "unsupported": 1361
     },
     "Symbol.asyncIterator": {
       "fail": 0,
@@ -665,20 +665,20 @@
       "unsupported": 62
     },
     "Symbol.prototype.description": {
-      "fail": 1,
+      "fail": 2,
       "pass": 0,
       "skip": 0,
       "timeout": 0,
       "total": 8,
-      "unsupported": 7
+      "unsupported": 6
     },
     "Symbol.replace": {
-      "fail": 0,
+      "fail": 1,
       "pass": 1,
       "skip": 0,
       "timeout": 0,
       "total": 98,
-      "unsupported": 97
+      "unsupported": 96
     },
     "Symbol.search": {
       "fail": 0,
@@ -1377,12 +1377,12 @@
       "unsupported": 734
     },
     "path:built-ins/Array": {
-      "fail": 13,
-      "pass": 44,
+      "fail": 22,
+      "pass": 96,
       "skip": 0,
       "timeout": 0,
       "total": 2467,
-      "unsupported": 2410
+      "unsupported": 2349
     },
     "path:built-ins/ArrayBuffer": {
       "fail": 0,
@@ -1505,12 +1505,12 @@
       "unsupported": 277
     },
     "path:built-ins/Object": {
-      "fail": 9,
-      "pass": 123,
+      "fail": 52,
+      "pass": 133,
       "skip": 0,
       "timeout": 0,
       "total": 3077,
-      "unsupported": 2945
+      "unsupported": 2892
     },
     "path:built-ins/Promise": {
       "fail": 1,
@@ -1530,11 +1530,11 @@
     },
     "path:built-ins/RegExp": {
       "fail": 0,
-      "pass": 14,
+      "pass": 13,
       "skip": 0,
       "timeout": 0,
       "total": 581,
-      "unsupported": 567
+      "unsupported": 568
     },
     "path:built-ins/Set": {
       "fail": 1,
@@ -1561,12 +1561,12 @@
       "unsupported": 0
     },
     "path:built-ins/String": {
-      "fail": 1,
-      "pass": 20,
+      "fail": 7,
+      "pass": 33,
       "skip": 0,
       "timeout": 0,
       "total": 904,
-      "unsupported": 883
+      "unsupported": 864
     },
     "path:built-ins/ThrowTypeError": {
       "fail": 0,
@@ -2785,12 +2785,12 @@
       "unsupported": 3
     },
     "path:language/expressions": {
-      "fail": 133,
-      "pass": 571,
+      "fail": 134,
+      "pass": 589,
       "skip": 0,
       "timeout": 0,
       "total": 2662,
-      "unsupported": 1958
+      "unsupported": 1939
     },
     "path:language/function-code": {
       "fail": 1,
@@ -2922,11 +2922,11 @@
     },
     "path:language/types": {
       "fail": 3,
-      "pass": 37,
+      "pass": 42,
       "skip": 0,
       "timeout": 0,
       "total": 109,
-      "unsupported": 69
+      "unsupported": 64
     },
     "path:language/white-space": {
       "fail": 0,
@@ -2945,12 +2945,12 @@
       "unsupported": 1
     },
     "path:staging/sm": {
-      "fail": 10,
-      "pass": 30,
+      "fail": 11,
+      "pass": 31,
       "skip": 0,
       "timeout": 2,
       "total": 1192,
-      "unsupported": 1150
+      "unsupported": 1148
     },
     "path:staging/source-phase-imports": {
       "fail": 2,
@@ -3195,18 +3195,18 @@
   },
   "commit": "b363f29d3c43c626dc852744ad64a0b48a003693",
   "counts": {
-    "fail": 1348,
-    "pass": 5002,
+    "fail": 1445,
+    "pass": 5127,
     "skip": 0,
     "timeout": 2,
     "total": 53869,
-    "unsupported": 47517
+    "unsupported": 47295
   },
   "coverage": {
-    "coveragePercent": 11.791568434535632,
-    "coveredPassPercent": 78.74685138539043,
-    "coveredTests": 6352,
-    "overallPassPercent": 9.285488871150383
+    "coveragePercent": 12.203679296070096,
+    "coveredPassPercent": 77.98904776391846,
+    "coveredTests": 6574,
+    "overallPassPercent": 9.517533275167535
   },
   "ecmaVersion": "ECMAScript 2025 (ES16), plus later features present in the pinned Test262 commit",
   "mode": "full"

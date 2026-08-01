@@ -119,6 +119,48 @@ func New(options ...Option) *Runtime {
 	r.global.define("Symbol", symbolConstructor, false)
 	r.global.define("NaN", Number(math.NaN()), true)
 	r.global.define("Infinity", Number(math.Inf(1)), true)
+	arrayConstructor := nativeValue(func(_ *Runtime, _ Value, args []Value) (Value, error) { return NewArray(args...), nil })
+	arrayConstructor.f.props["of"] = nativeValue(func(_ *Runtime, _ Value, args []Value) (Value, error) { return NewArray(args...), nil })
+	arrayConstructor.f.props["from"] = nativeValue(func(_ *Runtime, _ Value, args []Value) (Value, error) {
+		if len(args) == 0 {
+			return NewArray(), nil
+		}
+		source := args[0]
+		if source.k == KindObject && source.o.array {
+			n := int(number(source.o.props["length"]))
+			out := make([]Value, n)
+			for i := range n {
+				out[i] = source.o.props[fmt.Sprint(i)]
+			}
+			return NewArray(out...), nil
+		}
+		if source.k == KindString {
+			out := make([]Value, 0, len([]rune(source.s)))
+			for _, ch := range source.s {
+				out = append(out, String(string(ch)))
+			}
+			return NewArray(out...), nil
+		}
+		return Undefined(), &RuntimeError{Message: "Array.from source is not iterable"}
+	})
+	r.global.define("Array", arrayConstructor, false)
+	objectConstructor := nativeValue(func(_ *Runtime, _ Value, args []Value) (Value, error) {
+		if len(args) > 0 && (args[0].k == KindObject || args[0].k == KindFunction) {
+			return args[0], nil
+		}
+		return NewObject(), nil
+	})
+	objectConstructor.f.props["hasOwn"] = nativeValue(func(_ *Runtime, _ Value, args []Value) (Value, error) {
+		if len(args) < 2 {
+			return Boolean(false), nil
+		}
+		_, ok := property(args[0], args[1].String())
+		return Boolean(ok), nil
+	})
+	r.global.define("Object", objectConstructor, false)
+	globalThis := NewObject()
+	globalThis.o.props["globalThis"] = globalThis
+	r.global.define("globalThis", globalThis, true)
 	return r
 }
 func (r *Runtime) Compile(s string) (*Program, error) {

@@ -16,6 +16,10 @@ names within a lexical declaration, and require `const` initializers. Classic
 comma expressions evaluate from left to right. Full
 Test262 `let` coverage additionally depends on out-of-MVP modules, generators,
 destructuring, `for`/`for-in`/`for-of`, `switch`, `try`, and `eval` semantics.
+Initial standard-library coverage includes `Array.from`, `Array.of`, array/string
+`at` and `includes`, common string search/padding/trimming/replacement methods,
+`Object.hasOwn`, and `globalThis`. The full report remains authoritative for
+their incomplete edge-case and dependency coverage.
 
 ```go
 r := gots.New(gots.WithMaxSteps(10_000))

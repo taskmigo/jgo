@@ -15,13 +15,13 @@ test requires. A `pass` includes valid negative tests, so this is runner
 coverage—not a claim of full ECMAScript feature support.
 
 **ECMA target:** ECMAScript 2025 (ES16), plus later features present in the pinned Test262 commit<br>
-**Coverage:** 11.79% (6352/53869 tests reached execution)<br>
-**Overall pass:** 9.29% (5002/53869)<br>
-**Pass among covered:** 78.75% (5002/6352)
+**Coverage:** 12.20% (6574/53869 tests reached execution)<br>
+**Overall pass:** 9.52% (5127/53869)<br>
+**Pass among covered:** 77.99% (5127/6574)
 
 | pass | fail | skip | unsupported | timeout | total |
 |---:|---:|---:|---:|---:|---:|
-| 5002 | 1348 | 0 | 47517 | 2 | 53869 |
+| 5127 | 1445 | 0 | 47295 | 2 | 53869 |
 
 ### By feature
 
@@ -29,10 +29,10 @@ coverage—not a claim of full ECMAScript feature support.
 |---|---:|---:|---:|---:|---:|
 | AggregateError | 0 | 0 | 31 | 0 | 31 |
 | Array.fromAsync | 0 | 0 | 95 | 0 | 95 |
-| Array.prototype.at | 0 | 0 | 12 | 0 | 12 |
-| Array.prototype.flat | 0 | 0 | 15 | 0 | 15 |
-| Array.prototype.flatMap | 0 | 0 | 21 | 0 | 21 |
-| Array.prototype.includes | 2 | 0 | 67 | 0 | 69 |
+| Array.prototype.at | 0 | 2 | 10 | 0 | 12 |
+| Array.prototype.flat | 0 | 2 | 13 | 0 | 15 |
+| Array.prototype.flatMap | 0 | 4 | 17 | 0 | 21 |
+| Array.prototype.includes | 5 | 7 | 57 | 0 | 69 |
 | Array.prototype.values | 0 | 0 | 4 | 0 | 4 |
 | ArrayBuffer | 2 | 0 | 276 | 0 | 278 |
 | Atomics | 6 | 0 | 380 | 0 | 386 |
@@ -77,8 +77,8 @@ coverage—not a claim of full ECMAScript feature support.
 | Iterator.prototype.join | 0 | 0 | 18 | 0 | 18 |
 | Map | 7 | 0 | 33 | 0 | 40 |
 | Math.sumPrecise | 0 | 0 | 10 | 0 | 10 |
-| Object.fromEntries | 0 | 0 | 25 | 0 | 25 |
-| Object.hasOwn | 2 | 0 | 60 | 0 | 62 |
+| Object.fromEntries | 0 | 2 | 23 | 0 | 25 |
+| Object.hasOwn | 5 | 2 | 55 | 0 | 62 |
 | Object.is | 0 | 0 | 2 | 0 | 2 |
 | Promise | 1 | 0 | 3 | 0 | 4 |
 | Promise.allSettled | 2 | 0 | 100 | 0 | 102 |
@@ -95,23 +95,23 @@ coverage—not a claim of full ECMAScript feature support.
 | SharedArrayBuffer | 16 | 1 | 450 | 0 | 467 |
 | String.fromCodePoint | 3 | 0 | 19 | 0 | 22 |
 | String.prototype.at | 0 | 0 | 11 | 0 | 11 |
-| String.prototype.endsWith | 5 | 0 | 22 | 0 | 27 |
-| String.prototype.includes | 5 | 1 | 20 | 0 | 26 |
+| String.prototype.endsWith | 16 | 2 | 9 | 0 | 27 |
+| String.prototype.includes | 14 | 4 | 8 | 0 | 26 |
 | String.prototype.isWellFormed | 0 | 0 | 8 | 0 | 8 |
 | String.prototype.matchAll | 0 | 0 | 16 | 0 | 16 |
-| String.prototype.replaceAll | 0 | 0 | 41 | 0 | 41 |
+| String.prototype.replaceAll | 4 | 6 | 31 | 0 | 41 |
 | String.prototype.toWellFormed | 0 | 0 | 8 | 0 | 8 |
 | String.prototype.trimEnd | 0 | 0 | 24 | 0 | 24 |
 | String.prototype.trimStart | 0 | 0 | 23 | 0 | 23 |
-| Symbol | 120 | 5 | 1369 | 0 | 1494 |
+| Symbol | 115 | 18 | 1361 | 0 | 1494 |
 | Symbol.asyncIterator | 0 | 0 | 538 | 0 | 538 |
 | Symbol.hasInstance | 2 | 0 | 15 | 0 | 17 |
 | Symbol.isConcatSpreadable | 1 | 0 | 33 | 0 | 34 |
 | Symbol.iterator | 2 | 0 | 1865 | 0 | 1867 |
 | Symbol.match | 1 | 0 | 87 | 0 | 88 |
 | Symbol.matchAll | 1 | 0 | 62 | 0 | 63 |
-| Symbol.prototype.description | 0 | 1 | 7 | 0 | 8 |
-| Symbol.replace | 1 | 0 | 97 | 0 | 98 |
+| Symbol.prototype.description | 0 | 2 | 6 | 0 | 8 |
+| Symbol.replace | 1 | 1 | 96 | 0 | 98 |
 | Symbol.search | 2 | 0 | 35 | 0 | 37 |
 | Symbol.species | 8 | 0 | 276 | 0 | 284 |
 | Symbol.split | 1 | 0 | 57 | 0 | 58 |
@@ -199,7 +199,7 @@ coverage—not a claim of full ECMAScript feature support.
 | optional-chaining | 26 | 0 | 30 | 0 | 56 |
 | path:annexB/built-ins | 0 | 0 | 156 | 0 | 156 |
 | path:annexB/language | 66 | 19 | 734 | 0 | 819 |
-| path:built-ins/Array | 44 | 13 | 2410 | 0 | 2467 |
+| path:built-ins/Array | 96 | 22 | 2349 | 0 | 2467 |
 | path:built-ins/ArrayBuffer | 6 | 0 | 36 | 0 | 42 |
 | path:built-ins/AsyncFunction | 0 | 0 | 14 | 0 | 14 |
 | path:built-ins/Boolean | 0 | 0 | 46 | 0 | 46 |
@@ -215,14 +215,14 @@ coverage—not a claim of full ECMAScript feature support.
 | path:built-ins/NaN | 1 | 0 | 5 | 0 | 6 |
 | path:built-ins/NativeErrors | 3 | 4 | 73 | 0 | 80 |
 | path:built-ins/Number | 2 | 1 | 277 | 0 | 280 |
-| path:built-ins/Object | 123 | 9 | 2945 | 0 | 3077 |
+| path:built-ins/Object | 133 | 52 | 2892 | 0 | 3077 |
 | path:built-ins/Promise | 12 | 1 | 272 | 0 | 285 |
 | path:built-ins/Proxy | 0 | 0 | 2 | 0 | 2 |
-| path:built-ins/RegExp | 14 | 0 | 567 | 0 | 581 |
+| path:built-ins/RegExp | 13 | 0 | 568 | 0 | 581 |
 | path:built-ins/Set | 64 | 1 | 90 | 0 | 155 |
 | path:built-ins/SetIteratorPrototype | 0 | 0 | 2 | 0 | 2 |
 | path:built-ins/ShadowRealm | 0 | 3 | 0 | 0 | 3 |
-| path:built-ins/String | 20 | 1 | 883 | 0 | 904 |
+| path:built-ins/String | 33 | 7 | 864 | 0 | 904 |
 | path:built-ins/ThrowTypeError | 0 | 0 | 13 | 0 | 13 |
 | path:built-ins/WeakMap | 30 | 0 | 24 | 0 | 54 |
 | path:built-ins/WeakSet | 29 | 1 | 25 | 0 | 55 |
@@ -375,7 +375,7 @@ coverage—not a claim of full ECMAScript feature support.
 | path:language/directive-prologue | 11 | 11 | 40 | 0 | 62 |
 | path:language/eval-code | 8 | 0 | 200 | 0 | 208 |
 | path:language/export | 0 | 0 | 3 | 0 | 3 |
-| path:language/expressions | 571 | 133 | 1958 | 0 | 2662 |
+| path:language/expressions | 589 | 134 | 1939 | 0 | 2662 |
 | path:language/function-code | 55 | 1 | 161 | 0 | 217 |
 | path:language/future-reserved-words | 33 | 15 | 7 | 0 | 55 |
 | path:language/global-code | 1 | 4 | 26 | 0 | 31 |
@@ -392,10 +392,10 @@ coverage—not a claim of full ECMAScript feature support.
 | path:language/source-text | 0 | 0 | 1 | 0 | 1 |
 | path:language/statementList | 8 | 0 | 34 | 0 | 42 |
 | path:language/statements | 307 | 182 | 948 | 0 | 1437 |
-| path:language/types | 37 | 3 | 69 | 0 | 109 |
+| path:language/types | 42 | 3 | 64 | 0 | 109 |
 | path:language/white-space | 17 | 0 | 48 | 0 | 65 |
 | path:staging/built-ins | 0 | 0 | 1 | 0 | 1 |
-| path:staging/sm | 30 | 10 | 1150 | 2 | 1192 |
+| path:staging/sm | 31 | 11 | 1148 | 2 | 1192 |
 | path:staging/source-phase-imports | 0 | 2 | 0 | 0 | 2 |
 | path:staging/top-level-await | 0 | 3 | 0 | 0 | 3 |
 | promise-try | 2 | 0 | 10 | 0 | 12 |
