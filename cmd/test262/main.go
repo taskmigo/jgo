@@ -333,6 +333,12 @@ func runOne(root, name string, steps uint64, timeout time.Duration) (res result)
 	prefix := ""
 	if !contains(meta.flags, "raw") {
 		for _, inc := range meta.includes {
+			// isConstructor is supplied by the host below. Avoid requiring the
+			// runtime's still-unsupported try/catch syntax merely to ask whether
+			// a value has [[Construct]].
+			if inc == "isConstructor.js" {
+				continue
+			}
 			b, e := os.ReadFile(filepath.Join(root, "harness", filepath.FromSlash(inc)))
 			if e != nil {
 				res.Status = "fail"
@@ -402,6 +408,11 @@ func runOne(root, name string, steps uint64, timeout time.Duration) (res result)
 }
 
 func installHarness(r *gots.Runtime) error {
+	if err := r.Set("isConstructor", gots.NativeFunction(func(_ *gots.Runtime, _ gots.Value, args []gots.Value) (gots.Value, error) {
+		return gots.Boolean(len(args) > 0 && args[0].IsConstructor()), nil
+	})); err != nil {
+		return err
+	}
 	assertCall := gots.NativeFunction(func(_ *gots.Runtime, _ gots.Value, args []gots.Value) (gots.Value, error) {
 		if len(args) == 0 || !args[0].Bool() {
 			return gots.Undefined(), fmt.Errorf("Test262 assertion failed")

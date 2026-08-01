@@ -90,6 +90,16 @@ func TestEqualityRegression(t *testing.T) {
 		t.Fatalf("value=%v error=%v", value, err)
 	}
 }
+
+func TestArrowFunctionIsNotConstructor(t *testing.T) {
+	value, err := New().RunString(`() => { return 1; }`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if value.IsConstructor() {
+		t.Fatal("arrow function implements [[Construct]]")
+	}
+}
 func TestLimitsAndCancellation(t *testing.T) {
 	_, e := New(WithMaxSteps(20)).RunString(`while(true){}`)
 	if !errors.Is(e, ErrStepLimit) {

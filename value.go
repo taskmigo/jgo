@@ -38,8 +38,11 @@ func Number(v float64) Value      { return Value{k: KindNumber, n: v} }
 func String(v string) Value       { return Value{k: KindString, s: v} }
 func (v Value) Kind() Kind        { return v.k }
 func (v Value) IsUndefined() bool { return v.k == KindUndefined }
-func (v Value) Bool() bool        { return truthy(v) }
-func (v Value) Float64() float64  { return number(v) }
+
+// IsConstructor reports whether a value implements ECMAScript [[Construct]].
+func (v Value) IsConstructor() bool { return v.k == KindFunction && !v.f.noConstruct }
+func (v Value) Bool() bool          { return truthy(v) }
+func (v Value) Float64() float64    { return number(v) }
 func (v Value) String() string {
 	switch v.k {
 	case KindUndefined:
