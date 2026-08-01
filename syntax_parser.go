@@ -28,154 +28,22 @@ func (p *parser) statement() (stmt, error) {
 		return &exprStmt{base: base{p.prev().Span}, e: &literalExpr{value: Undefined()}}, nil
 	}
 	if p.match(TokLet, TokVar, TokConst) {
-		k := p.prev()
-		var declarations []*varStmt
-		declared := map[string]struct{}{}
-		for {
-			n, e := p.need(TokIdent, "expected variable name")
-			if e != nil {
-				return nil, e
-			}
-			if k.Type != TokVar {
-				if _, exists := declared[n.Literal]; exists {
-					return nil, p.err(n, "duplicate lexical declaration")
-				}
-				declared[n.Literal] = struct{}{}
-			}
-			var v expr = &literalExpr{base: base{n.Span}, value: Undefined()}
-			if p.match(TokAssign) {
-				v, e = p.assign()
-				if e != nil {
-					return nil, e
-				}
-			} else if k.Type == TokConst {
-				return nil, p.err(n, "const declaration requires an initializer")
-			}
-			declarations = append(declarations, &varStmt{base: base{k.Span}, name: n.Literal, value: v, constant: k.Type == TokConst})
-			if !p.match(TokComma) {
-				break
-			}
-		}
-		p.match(TokSemi)
-		if len(declarations) == 1 {
-			return declarations[0], nil
-		}
-		return &varsStmt{base: base{k.Span}, declarations: declarations}, nil
+		return p.variableStatement(p.prev())
 	}
 	if p.match(TokFunction) {
-		start := p.prev()
-		name, e := p.need(TokIdent, "expected function name")
-		if e != nil {
-			return nil, e
-		}
-		fn, e := p.function(start, name.Literal)
-		if e != nil {
-			return nil, e
-		}
-		return &functionStmt{base: base{start.Span}, name: name.Literal, fn: fn}, nil
+		return p.functionDeclaration(p.prev())
 	}
 	if p.match(TokReturn) {
-		t := p.prev()
-		var v expr = &literalExpr{base: base{t.Span}, value: Undefined()}
-		var e error
-		if !p.at(TokSemi) && !p.at(TokRBrace) && !p.at(TokEOF) {
-			v, e = p.expression()
-			if e != nil {
-				return nil, e
-			}
-		}
-		p.match(TokSemi)
-		return &returnStmt{base: base{t.Span}, value: v}, nil
+		return p.returnStatement(p.prev())
 	}
 	if p.match(TokIf) {
-		t := p.prev()
-		if _, e := p.need(TokLParen, "expected '('"); e != nil {
-			return nil, e
-		}
-		test, e := p.expression()
-		if e != nil {
-			return nil, e
-		}
-		if _, e = p.need(TokRParen, "expected ')'"); e != nil {
-			return nil, e
-		}
-		then, e := p.statement()
-		if e != nil {
-			return nil, e
-		}
-		var other stmt
-		if p.match(TokElse) {
-			other, e = p.statement()
-		}
-		return &ifStmt{base: base{t.Span}, test: test, then: then, otherwise: other}, e
+		return p.ifStatement(p.prev())
 	}
 	if p.match(TokWhile) {
-		t := p.prev()
-		if _, e := p.need(TokLParen, "expected '('"); e != nil {
-			return nil, e
-		}
-		test, e := p.expression()
-		if e != nil {
-			return nil, e
-		}
-		if _, e = p.need(TokRParen, "expected ')'"); e != nil {
-			return nil, e
-		}
-		body, e := p.statement()
-		return &whileStmt{base: base{t.Span}, test: test, body: body}, e
+		return p.whileStatement(p.prev())
 	}
 	if p.match(TokFor) {
-		start := p.prev()
-		if _, e := p.need(TokLParen, "expected '('"); e != nil {
-			return nil, e
-		}
-		var init stmt
-		lexical := p.at(TokLet) || p.at(TokConst)
-		if p.match(TokSemi) {
-			init = &exprStmt{base: base{start.Span}, e: &literalExpr{value: Undefined()}}
-		} else if p.at(TokLet) || p.at(TokConst) || p.at(TokVar) {
-			var e error
-			init, e = p.statement()
-			if e != nil {
-				return nil, e
-			}
-		} else {
-			x, e := p.expression()
-			if e != nil {
-				return nil, e
-			}
-			if _, e = p.need(TokSemi, "expected ';'"); e != nil {
-				return nil, e
-			}
-			init = &exprStmt{base: base{x.span()}, e: x}
-		}
-		var test expr = &literalExpr{base: base{start.Span}, value: Boolean(true)}
-		if !p.at(TokSemi) {
-			var e error
-			test, e = p.expression()
-			if e != nil {
-				return nil, e
-			}
-		}
-		if _, e := p.need(TokSemi, "expected ';'"); e != nil {
-			return nil, e
-		}
-		var update expr = &literalExpr{base: base{start.Span}, value: Undefined()}
-		if !p.at(TokRParen) {
-			var e error
-			update, e = p.expression()
-			if e != nil {
-				return nil, e
-			}
-		}
-		if _, e := p.need(TokRParen, "expected ')'"); e != nil {
-			return nil, e
-		}
-		body, e := p.statement()
-		if e != nil {
-			return nil, e
-		}
-		return &forStmt{base: base{start.Span}, init: init, test: test, update: update, body: body, lexical: lexical}, nil
+		return p.forStatement(p.prev())
 	}
 	if p.match(TokLBrace) {
 		return p.block(p.prev())
@@ -186,6 +54,165 @@ func (p *parser) statement() (stmt, error) {
 	}
 	p.match(TokSemi)
 	return &exprStmt{base: base{e.span()}, e: e}, nil
+}
+
+func (p *parser) variableStatement(keyword Token) (stmt, error) {
+	var declarations []*varStmt
+	declaredNames := map[string]struct{}{}
+	for {
+		name, err := p.need(TokIdent, "expected variable name")
+		if err != nil {
+			return nil, err
+		}
+		if keyword.Type != TokVar {
+			if _, exists := declaredNames[name.Literal]; exists {
+				return nil, p.err(name, "duplicate lexical declaration")
+			}
+			declaredNames[name.Literal] = struct{}{}
+		}
+
+		var initializer expr = &literalExpr{base: base{name.Span}, value: Undefined()}
+		if p.match(TokAssign) {
+			initializer, err = p.assign()
+			if err != nil {
+				return nil, err
+			}
+		} else if keyword.Type == TokConst {
+			return nil, p.err(name, "const declaration requires an initializer")
+		}
+		declarations = append(declarations, &varStmt{
+			base: base{keyword.Span}, name: name.Literal, value: initializer,
+			constant: keyword.Type == TokConst,
+		})
+		if !p.match(TokComma) {
+			break
+		}
+	}
+	p.match(TokSemi)
+	if len(declarations) == 1 {
+		return declarations[0], nil
+	}
+	return &varsStmt{base: base{keyword.Span}, declarations: declarations}, nil
+}
+
+func (p *parser) functionDeclaration(start Token) (stmt, error) {
+	name, err := p.need(TokIdent, "expected function name")
+	if err != nil {
+		return nil, err
+	}
+	function, err := p.function(start, name.Literal)
+	if err != nil {
+		return nil, err
+	}
+	return &functionStmt{base: base{start.Span}, name: name.Literal, fn: function}, nil
+}
+
+func (p *parser) returnStatement(keyword Token) (stmt, error) {
+	var value expr = &literalExpr{base: base{keyword.Span}, value: Undefined()}
+	if !p.at(TokSemi) && !p.at(TokRBrace) && !p.at(TokEOF) {
+		var err error
+		value, err = p.expression()
+		if err != nil {
+			return nil, err
+		}
+	}
+	p.match(TokSemi)
+	return &returnStmt{base: base{keyword.Span}, value: value}, nil
+}
+
+func (p *parser) ifStatement(keyword Token) (stmt, error) {
+	test, err := p.parenthesizedExpression()
+	if err != nil {
+		return nil, err
+	}
+	thenBranch, err := p.statement()
+	if err != nil {
+		return nil, err
+	}
+	var elseBranch stmt
+	if p.match(TokElse) {
+		elseBranch, err = p.statement()
+	}
+	return &ifStmt{base: base{keyword.Span}, test: test, then: thenBranch, otherwise: elseBranch}, err
+}
+
+func (p *parser) whileStatement(keyword Token) (stmt, error) {
+	test, err := p.parenthesizedExpression()
+	if err != nil {
+		return nil, err
+	}
+	body, err := p.statement()
+	return &whileStmt{base: base{keyword.Span}, test: test, body: body}, err
+}
+
+func (p *parser) parenthesizedExpression() (expr, error) {
+	if _, err := p.need(TokLParen, "expected '('"); err != nil {
+		return nil, err
+	}
+	value, err := p.expression()
+	if err != nil {
+		return nil, err
+	}
+	if _, err = p.need(TokRParen, "expected ')'"); err != nil {
+		return nil, err
+	}
+	return value, nil
+}
+
+func (p *parser) forStatement(keyword Token) (stmt, error) {
+	if _, err := p.need(TokLParen, "expected '('"); err != nil {
+		return nil, err
+	}
+	initializer, lexical, err := p.forInitializer(keyword)
+	if err != nil {
+		return nil, err
+	}
+
+	var test expr = &literalExpr{base: base{keyword.Span}, value: Boolean(true)}
+	if !p.at(TokSemi) {
+		test, err = p.expression()
+		if err != nil {
+			return nil, err
+		}
+	}
+	if _, err = p.need(TokSemi, "expected ';'"); err != nil {
+		return nil, err
+	}
+
+	var update expr = &literalExpr{base: base{keyword.Span}, value: Undefined()}
+	if !p.at(TokRParen) {
+		update, err = p.expression()
+		if err != nil {
+			return nil, err
+		}
+	}
+	if _, err = p.need(TokRParen, "expected ')'"); err != nil {
+		return nil, err
+	}
+	body, err := p.statement()
+	if err != nil {
+		return nil, err
+	}
+	return &forStmt{base: base{keyword.Span}, init: initializer, test: test, update: update, body: body, lexical: lexical}, nil
+}
+
+func (p *parser) forInitializer(keyword Token) (stmt, bool, error) {
+	lexical := p.at(TokLet) || p.at(TokConst)
+	if p.match(TokSemi) {
+		return &exprStmt{base: base{keyword.Span}, e: &literalExpr{value: Undefined()}}, lexical, nil
+	}
+	if p.at(TokLet) || p.at(TokConst) || p.at(TokVar) {
+		initializer, err := p.statement()
+		return initializer, lexical, err
+	}
+	value, err := p.expression()
+	if err != nil {
+		return nil, lexical, err
+	}
+	if _, err = p.need(TokSemi, "expected ';'"); err != nil {
+		return nil, lexical, err
+	}
+	return &exprStmt{base: base{value.span()}, e: value}, lexical, nil
 }
 func (p *parser) block(start Token) (stmt, error) {
 	var b []stmt

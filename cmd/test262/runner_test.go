@@ -1,13 +1,102 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
+	"encoding/xml"
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 )
+
+func TestRunCLISmokeSuite(t *testing.T) {
+	t.Setenv("GITHUB_STEP_SUMMARY", "")
+	temporary := t.TempDir()
+	jsonOutput := filepath.Join(temporary, "report.json")
+	junitOutput := filepath.Join(temporary, "report.xml")
+	summaryOutput := filepath.Join(temporary, "summary.md")
+	args := []string{
+		"-test262", "../../test262",
+		"-selection", "../../test262/selection.json",
+		"-json", jsonOutput,
+		"-junit", junitOutput,
+		"-summary", summaryOutput,
+	}
+	var stdout, stderr bytes.Buffer
+	if code := runCLI(args, &stdout, &stderr); code != 0 {
+		t.Fatalf("exit code = %d, stderr = %q", code, stderr.String())
+	}
+	if stdout.Len() != 0 || stderr.Len() != 0 {
+		t.Fatalf("stdout=%q stderr=%q", stdout.String(), stderr.String())
+	}
+
+	data, err := os.ReadFile(jsonOutput)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var report report
+	if err := json.Unmarshal(data, &report); err != nil {
+		t.Fatal(err)
+	}
+	if report.Counts != (counts{Pass: 3, Total: 3}) {
+		t.Fatalf("unexpected counts: %+v", report.Counts)
+	}
+
+	data, err = os.ReadFile(junitOutput)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var junit suite
+	if err := xml.Unmarshal(data, &junit); err != nil {
+		t.Fatal(err)
+	}
+	if junit.Tests != 3 || junit.Failures != 0 || junit.Skipped != 0 || len(junit.Cases) != 3 {
+		t.Fatalf("unexpected JUnit report: %+v", junit)
+	}
+	if summary, err := os.ReadFile(summaryOutput); err != nil || !strings.Contains(string(summary), "execution coverage:** 100.00% (3/3") {
+		t.Fatalf("summary=%q error=%v", summary, err)
+	}
+}
+
+func TestRunCLIExitCodes(t *testing.T) {
+	t.Setenv("GITHUB_STEP_SUMMARY", "")
+	var stdout, stderr bytes.Buffer
+	if code := runCLI([]string{"-refresh-baseline"}, &stdout, &stderr); code != 2 {
+		t.Fatalf("operational error exit code = %d, want 2", code)
+	}
+	if got := stderr.String(); got != "-refresh-baseline requires -baseline\n" {
+		t.Fatalf("stderr = %q", got)
+	}
+
+	temporary := t.TempDir()
+	baselinePath := filepath.Join(temporary, "baseline.json")
+	baseline := baselineSnapshot{
+		Commit:      "b363f29d3c43c626dc852744ad64a0b48a003693",
+		ECMAVersion: "ECMAScript 2025 (ES16), plus later features present in the pinned Test262 commit",
+		Mode:        "selection",
+		Counts:      counts{Pass: 4, Total: 3},
+		ByFeature:   map[string]counts{},
+	}
+	if err := writeJSON(baselinePath, baseline); err != nil {
+		t.Fatal(err)
+	}
+	stdout.Reset()
+	stderr.Reset()
+	args := []string{
+		"-test262", "../../test262",
+		"-selection", "../../test262/selection.json",
+		"-baseline", baselinePath,
+		"-json", filepath.Join(temporary, "report.json"),
+		"-junit", filepath.Join(temporary, "report.xml"),
+		"-summary", filepath.Join(temporary, "summary.md"),
+	}
+	if code := runCLI(args, &stdout, &stderr); code != 1 {
+		t.Fatalf("regression exit code = %d, want 1; stderr=%q", code, stderr.String())
+	}
+}
 
 func TestRenderCoverageIsDeterministic(t *testing.T) {
 	r := report{
