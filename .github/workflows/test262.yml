@@ -13,8 +13,12 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: tc39/test262
-          ref: 5a2c0b291f85cded63ef793dd46fd60a32c7c242
+          # Keep this synchronized with test262/selection.json. Unlike the
+          # previous value, this is an actual commit in tc39/test262.
+          ref: b363f29d3c43c626dc852744ad64a0b48a003693
           path: test262-upstream
+      - name: Verify pinned Test262 checkout
+        run: test "$(git -C test262-upstream rev-parse HEAD)" = "$(jq -r .commit test262/selection.json)"
       - run: go run ./cmd/test262 -test262 test262 -json test262-report.json -junit test262-report.xml
       - uses: actions/upload-artifact@v4
         with:

@@ -21,7 +21,7 @@ interpreter operations. Exposing privileged host functions is not a sandbox.
 ## Conformance
 
 The deliberately small Test262 selection is pinned in `test262/selection.json`
-at commit `5a2c0b291f85cded63ef793dd46fd60a32c7c242`. Reproduce the bundled smoke
+at commit `b363f29d3c43c626dc852744ad64a0b48a003693`. Reproduce the bundled smoke
 report with:
 
 ```sh
