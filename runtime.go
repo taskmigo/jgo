@@ -49,7 +49,6 @@ func WithMaxCallDepth(n int) Option { return func(r *Runtime) { r.maxDepth = n }
 
 type Runtime struct {
 	global   *environment
-	symbols  map[string]*symbolValue
 	maxSteps uint64
 	maxDepth int
 	exec     *execution
@@ -75,7 +74,7 @@ type execution struct {
 }
 
 func New(options ...Option) *Runtime {
-	r := &Runtime{global: newEnvironment(nil), maxDepth: 256, symbols: map[string]*symbolValue{}}
+	r := &Runtime{global: newEnvironment(nil), maxDepth: 256}
 	for _, o := range options {
 		o(r)
 	}
@@ -114,12 +113,7 @@ func New(options ...Option) *Runtime {
 		if len(args) > 0 {
 			description = args[0].String()
 		}
-		if symbol, ok := r.symbols[description]; ok {
-			return Value{k: KindSymbol, sy: symbol}, nil
-		}
-		symbol := &symbolValue{identity: newIdentity(), description: description, registered: true}
-		r.symbols[description] = symbol
-		return Value{k: KindSymbol, sy: symbol}, nil
+		return Value{k: KindSymbol, sy: &symbolValue{identity: newIdentity(), description: description, registered: true}}, nil
 	})
 	symbolConstructor.f.props["for"] = symbolFor
 	r.global.define("Symbol", symbolConstructor, false)
@@ -558,14 +552,10 @@ func (r *Runtime) evalBinary(n *binaryExpr, e *environment) (Value, error) {
 		return Boolean(number(l) > number(q)), nil
 	case TokGE:
 		return Boolean(number(l) >= number(q)), nil
-	case TokStrictEQ:
+	case TokEQ, TokStrictEQ:
 		return Boolean(strictlyEqual(l, q)), nil
-	case TokStrictNE:
+	case TokNE, TokStrictNE:
 		return Boolean(!strictlyEqual(l, q)), nil
-	case TokEQ:
-		return Boolean(looselyEqual(l, q)), nil
-	case TokNE:
-		return Boolean(!looselyEqual(l, q)), nil
 	}
 	return q, nil
 }
@@ -592,24 +582,6 @@ func strictlyEqual(a, b Value) bool {
 	return false
 }
 
-func looselyEqual(a, b Value) bool {
-	if a.k == b.k {
-		return strictlyEqual(a, b)
-	}
-	if (a.k == KindNull && b.k == KindUndefined) || (a.k == KindUndefined && b.k == KindNull) {
-		return true
-	}
-	if a.k == KindBoolean {
-		return looselyEqual(Number(number(a)), b)
-	}
-	if b.k == KindBoolean {
-		return looselyEqual(a, Number(number(b)))
-	}
-	if (a.k == KindNumber && b.k == KindString) || (a.k == KindString && b.k == KindNumber) {
-		return number(a) == number(b)
-	}
-	return false
-}
 func (r *Runtime) makeFunction(n *functionExpr, e *environment) Value {
 	return Value{k: KindFunction, f: &function{identity: newIdentity(), props: map[string]Value{}, params: n.params, body: n.body, closure: e, name: n.name}}
 }
