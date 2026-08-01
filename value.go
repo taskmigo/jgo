@@ -100,8 +100,46 @@ func NewObject() Value {
 // SetProperty defines an own property on an object for host-provided APIs.
 func (v Value) SetProperty(name string, value Value) error { return setProperty(v, name, value) }
 
-// SameValue reports primitive equality or object/function identity.
-func SameValue(a, b Value) bool { return equal(a, b) }
+// SameValue implements the ECMAScript SameValue abstract operation. Unlike
+// strict equality it considers NaN equal to itself and distinguishes signed
+// zero. It never coerces either operand.
+func SameValue(a, b Value) bool {
+	if a.k != b.k {
+		return false
+	}
+	switch a.k {
+	case KindUndefined, KindNull:
+		return true
+	case KindBoolean:
+		return a.b == b.b
+	case KindNumber:
+		if math.IsNaN(a.n) || math.IsNaN(b.n) {
+			return math.IsNaN(a.n) && math.IsNaN(b.n)
+		}
+		if a.n == 0 && b.n == 0 {
+			return math.Signbit(a.n) == math.Signbit(b.n)
+		}
+		return a.n == b.n
+	case KindString:
+		return a.s == b.s
+	case KindObject:
+		return a.o == b.o
+	case KindFunction:
+		return a.f == b.f
+	case KindSymbol:
+		return a.sy == b.sy
+	}
+	return false
+}
+
+// sameValueZero is used by collection-like operations such as
+// Array.prototype.includes. It differs from SameValue only for signed zero.
+func sameValueZero(a, b Value) bool {
+	if a.k == KindNumber && b.k == KindNumber && math.IsNaN(a.n) && math.IsNaN(b.n) {
+		return true
+	}
+	return strictlyEqual(a, b)
+}
 func NewArray(values ...Value) Value {
 	o := &Object{identity: newIdentity(), props: map[string]Value{}, array: true}
 	for i, v := range values {
@@ -287,7 +325,7 @@ func property(v Value, key string) (Value, bool) {
 				}
 				n := int(number(v.o.props["length"]))
 				for i := 0; i < n; i++ {
-					if SameValue(v.o.props[strconv.Itoa(i)], args[0]) {
+					if sameValueZero(v.o.props[strconv.Itoa(i)], args[0]) {
 						return Boolean(true), nil
 					}
 				}

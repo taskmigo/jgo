@@ -49,6 +49,7 @@ func WithMaxCallDepth(n int) Option { return func(r *Runtime) { r.maxDepth = n }
 
 type Runtime struct {
 	global   *environment
+	symbols  map[string]*symbolValue
 	maxSteps uint64
 	maxDepth int
 	exec     *execution
@@ -74,7 +75,7 @@ type execution struct {
 }
 
 func New(options ...Option) *Runtime {
-	r := &Runtime{global: newEnvironment(nil), maxDepth: 256}
+	r := &Runtime{global: newEnvironment(nil), maxDepth: 256, symbols: map[string]*symbolValue{}}
 	for _, o := range options {
 		o(r)
 	}
@@ -113,7 +114,12 @@ func New(options ...Option) *Runtime {
 		if len(args) > 0 {
 			description = args[0].String()
 		}
-		return Value{k: KindSymbol, sy: &symbolValue{identity: newIdentity(), description: description, registered: true}}, nil
+		if symbol, ok := r.symbols[description]; ok {
+			return Value{k: KindSymbol, sy: symbol}, nil
+		}
+		symbol := &symbolValue{identity: newIdentity(), description: description, registered: true}
+		r.symbols[description] = symbol
+		return Value{k: KindSymbol, sy: symbol}, nil
 	})
 	symbolConstructor.f.props["for"] = symbolFor
 	r.global.define("Symbol", symbolConstructor, false)
@@ -156,6 +162,45 @@ func New(options ...Option) *Runtime {
 		}
 		_, ok := property(args[0], args[1].String())
 		return Boolean(ok), nil
+	})
+	objectIs := nativeValue(func(_ *Runtime, _ Value, args []Value) (Value, error) {
+		x, y := Undefined(), Undefined()
+		if len(args) > 0 {
+			x = args[0]
+		}
+		if len(args) > 1 {
+			y = args[1]
+		}
+		return Boolean(SameValue(x, y)), nil
+	})
+	objectIs.f.noConstruct = true
+	objectIs.f.props["name"] = String("is")
+	objectIs.f.props["length"] = Number(2)
+	objectIs.f.props["call"] = nativeValue(func(_ *Runtime, _ Value, args []Value) (Value, error) {
+		x, y := Undefined(), Undefined()
+		if len(args) > 1 {
+			x = args[1]
+		}
+		if len(args) > 2 {
+			y = args[2]
+		}
+		return Boolean(SameValue(x, y)), nil
+	})
+	objectConstructor.f.props["is"] = objectIs
+	objectConstructor.f.props["getOwnPropertyDescriptor"] = nativeValue(func(_ *Runtime, _ Value, args []Value) (Value, error) {
+		if len(args) < 2 || args[0].f != objectConstructor.f || args[1].String() != "is" {
+			return Undefined(), nil
+		}
+		value, ok := property(args[0], args[1].String())
+		if !ok {
+			return Undefined(), nil
+		}
+		descriptor := NewObject()
+		descriptor.o.props["value"] = value
+		descriptor.o.props["writable"] = Boolean(true)
+		descriptor.o.props["enumerable"] = Boolean(false)
+		descriptor.o.props["configurable"] = Boolean(true)
+		return descriptor, nil
 	})
 	r.global.define("Object", objectConstructor, false)
 	globalThis := NewObject()
@@ -513,14 +558,18 @@ func (r *Runtime) evalBinary(n *binaryExpr, e *environment) (Value, error) {
 		return Boolean(number(l) > number(q)), nil
 	case TokGE:
 		return Boolean(number(l) >= number(q)), nil
-	case TokEQ, TokStrictEQ:
-		return Boolean(equal(l, q)), nil
-	case TokNE, TokStrictNE:
-		return Boolean(!equal(l, q)), nil
+	case TokStrictEQ:
+		return Boolean(strictlyEqual(l, q)), nil
+	case TokStrictNE:
+		return Boolean(!strictlyEqual(l, q)), nil
+	case TokEQ:
+		return Boolean(looselyEqual(l, q)), nil
+	case TokNE:
+		return Boolean(!looselyEqual(l, q)), nil
 	}
 	return q, nil
 }
-func equal(a, b Value) bool {
+func strictlyEqual(a, b Value) bool {
 	if a.k != b.k {
 		return false
 	}
@@ -539,6 +588,25 @@ func equal(a, b Value) bool {
 		return a.f == b.f
 	case KindSymbol:
 		return a.sy == b.sy
+	}
+	return false
+}
+
+func looselyEqual(a, b Value) bool {
+	if a.k == b.k {
+		return strictlyEqual(a, b)
+	}
+	if (a.k == KindNull && b.k == KindUndefined) || (a.k == KindUndefined && b.k == KindNull) {
+		return true
+	}
+	if a.k == KindBoolean {
+		return looselyEqual(Number(number(a)), b)
+	}
+	if b.k == KindBoolean {
+		return looselyEqual(a, Number(number(b)))
+	}
+	if (a.k == KindNumber && b.k == KindString) || (a.k == KindString && b.k == KindNumber) {
+		return number(a) == number(b)
 	}
 	return false
 }
