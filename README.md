@@ -70,6 +70,20 @@ allows known failures while failing CI if pass coverage decreases, failure or
 unsupported counts increase, a feature regresses, or the test denominator/pin
 changes unexpectedly.
 
+To update the canonical coverage report and baseline locally, run:
+
+```sh
+./scripts/update-test262-coverage.sh
+```
+
+The script checks out the pinned Test262 commit into a temporary directory,
+runs the complete suite, and removes the checkout and detailed report artifacts
+when it finishes. `COVERAGE.md` and `test262/full-baseline.json` are preserved
+for review even when the runner detects a regression and exits non-zero.
+Additional Test262 runner flags can be appended to the command; the GitHub
+workflow uses this to preserve its detailed JSON and JUnit artifacts outside
+the temporary directory.
+
 ## Roadmap
 
 Grow conformance feature-by-feature, add complete Test262 harness include and

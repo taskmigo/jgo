@@ -1,3 +1,15 @@
+# Test262 coverage report
+
+**Report date:** 2026-08-01  
+**Pinned Test262 commit:** `b363f29d3c43c626dc852744ad64a0b48a003693`  
+**ECMA target:** ECMAScript 2025 (ES16), plus later features present in the pinned Test262 commit
+
+This report is generated from the complete pinned Test262 suite. **Test262
+coverage** is the percentage of all tests that reached execution (pass, fail, or
+timeout); unsupported tests are excluded. **Overall pass rate** is passes divided
+by every test in the suite, including unsupported tests. These runner metrics do
+not by themselves claim complete ECMAScript conformance.
+
 ## Test262 b363f29d3c43c626dc852744ad64a0b48a003693 (full)
 
 **ECMA target:** ECMAScript 2025 (ES16), plus later features present in the pinned Test262 commit<br>

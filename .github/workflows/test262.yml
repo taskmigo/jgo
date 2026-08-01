@@ -11,21 +11,10 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with: {go-version: '1.25.x'}
-      - uses: actions/checkout@v4
-        with:
-          repository: tc39/test262
-          # Keep this synchronized with test262/selection.json. Unlike the
-          # previous value, this is an actual commit in tc39/test262.
-          ref: b363f29d3c43c626dc852744ad64a0b48a003693
-          path: test262-upstream
-      - name: Verify pinned Test262 checkout
-        run: test "$(git -C test262-upstream rev-parse HEAD)" = "$(jq -r .commit test262/selection.json)"
       - name: Run complete pinned Test262 suite
         run: >-
-          go run ./cmd/test262 -all -test262 test262-upstream
-          -baseline test262/full-baseline.json -refresh-baseline -timeout 100ms
+          ./scripts/update-test262-coverage.sh
           -json test262-report.json -junit test262-report.xml
-          -coverage COVERAGE.md
       - name: Verify committed coverage report and baseline
         if: always()
         run: git diff --exit-code -- COVERAGE.md test262/full-baseline.json
