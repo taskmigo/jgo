@@ -123,7 +123,7 @@ func (l *lexer) next() (Token, error) {
 	for _, x := range []struct {
 		s string
 		t TokenType
-	}{{"===", TokStrictEQ}, {"!==", TokStrictNE}, {"==", TokEQ}, {"!=", TokNE}, {"<=", TokLE}, {">=", TokGE}, {"=>", TokArrow}, {"&&", TokAnd}, {"||", TokOr}} {
+	}{{"===", TokStrictEQ}, {"!==", TokStrictNE}, {"==", TokEQ}, {"!=", TokNE}, {"<=", TokLE}, {">=", TokGE}, {"&&", TokAnd}, {"||", TokOr}} {
 		if len(l.source)-l.off >= len(x.s) && l.source[l.off:l.off+len(x.s)] == x.s {
 			for range x.s {
 				l.advance()

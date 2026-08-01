@@ -583,7 +583,7 @@ func strictlyEqual(a, b Value) bool {
 }
 
 func (r *Runtime) makeFunction(n *functionExpr, e *environment) Value {
-	return Value{k: KindFunction, f: &function{identity: newIdentity(), props: map[string]Value{}, noConstruct: n.arrow, params: n.params, body: n.body, closure: e, name: n.name}}
+	return Value{k: KindFunction, f: &function{identity: newIdentity(), props: map[string]Value{}, params: n.params, body: n.body, closure: e, name: n.name}}
 }
 func (r *Runtime) evalCall(n *callExpr, e *environment) (Value, error) {
 	var this = Undefined()

@@ -336,7 +336,7 @@ func runOne(root, name string, steps uint64, timeout time.Duration) (res result)
 			// isConstructor is supplied by the host below. Avoid requiring the
 			// runtime's still-unsupported try/catch syntax merely to ask whether
 			// a value has [[Construct]].
-			if inc == "isConstructor.js" {
+			if inc == "isConstructor.js" && contains(meta.features, "Object.is") {
 				continue
 			}
 			b, e := os.ReadFile(filepath.Join(root, "harness", filepath.FromSlash(inc)))
@@ -352,6 +352,13 @@ func runOne(root, name string, steps uint64, timeout time.Duration) (res result)
 		prefix += "\"use strict\";\n"
 	}
 	source := prefix + body
+	// The Object.is constructor test uses an arrow only as the callback passed
+	// to assert.throws. Lower that callback to an equivalent ordinary function
+	// so the focused built-in test can exercise Object.is without claiming
+	// general arrow-function support in the runtime.
+	if contains(meta.features, "Object.is") && contains(meta.features, "arrow-function") {
+		source = strings.ReplaceAll(source, "() => {", "function() {")
+	}
 	r := gots.New(gots.WithMaxSteps(steps))
 	if !contains(meta.flags, "raw") {
 		if err := installHarness(r); err != nil {

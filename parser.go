@@ -263,23 +263,6 @@ func (p *parser) unary() (expr, error) {
 		}
 		return &unaryExpr{base: base{Span{o.Span.Start, r.span().End}}, op: o.Type, right: r}, nil
 	}
-	// Parse the zero-parameter block-bodied arrow form used for callbacks by
-	// built-in conformance tests. Arrow functions do not have [[Construct]].
-	if p.at(TokLParen) && p.pos+2 < len(p.tokens) && p.tokens[p.pos+1].Type == TokRParen && p.tokens[p.pos+2].Type == TokArrow {
-		start := p.take()
-		p.take()
-		p.take()
-		lb, e := p.need(TokLBrace, "expected arrow function body")
-		if e != nil {
-			return nil, e
-		}
-		body, e := p.block(lb)
-		if e != nil {
-			return nil, e
-		}
-		block := body.(*blockStmt)
-		return &functionExpr{base: base{Span{start.Span.Start, block.span().End}}, body: block.body, arrow: true}, nil
-	}
 	construct := p.match(TokNew)
 	x, e := p.primary()
 	if e != nil {

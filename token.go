@@ -42,7 +42,6 @@ const (
 	TokDot       TokenType = "."
 	TokColon     TokenType = ":"
 	TokAssign    TokenType = "="
-	TokArrow     TokenType = "=>"
 	TokPlus      TokenType = "+"
 	TokMinus     TokenType = "-"
 	TokStar      TokenType = "*"

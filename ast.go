@@ -97,7 +97,6 @@ func (*objectExpr) exprNode() {}
 type functionExpr struct {
 	base
 	name   string
-	arrow  bool
 	params []string
 	body   []stmt
 }
