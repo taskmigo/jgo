@@ -1,7 +1,7 @@
 name: Test262
 on:
   pull_request:
-  push: {branches: [main]}
+  push:
   workflow_dispatch:
 jobs:
   full-suite:
