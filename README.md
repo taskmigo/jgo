@@ -46,9 +46,9 @@ unsupported counts. No aggregate result should be interpreted as full
 ECMAScript compatibility. Go 1.25 or later is required.
 
 Every report identifies the ECMA target and pinned Test262 commit, and shows
-three distinct percentages: tests covered (not unsupported), passes over the
-full denominator, and passes among covered tests. This avoids presenting the
-covered-test pass rate as overall ECMAScript conformance.
+three distinct Test262 percentages: execution coverage (not unsupported), the
+overall pass rate over the full denominator, and the pass rate among executed
+tests. These are Test262 runner metrics, not ECMAScript specification coverage.
 Tests whose Test262 metadata has no `features` entry are grouped under stable
 `path:*` categories derived from their suite path (for example,
 `path:built-ins/WeakMap` or `path:language/expressions`), so no results disappear
@@ -69,6 +69,24 @@ The Test262 workflow always executes this complete pinned suite. Its baseline
 allows known failures while failing CI if pass coverage decreases, failure or
 unsupported counts increase, a feature regresses, or the test denominator/pin
 changes unexpectedly.
+
+To update the canonical coverage report and baseline locally, run:
+
+```sh
+./scripts/update-test262-coverage.sh
+```
+
+The script checks out the pinned Test262 commit into a temporary directory,
+runs the complete suite, and removes the checkout and detailed report artifacts
+when it finishes. `COVERAGE.md` and `test262/full-baseline.json` are preserved
+for review even when the runner detects a regression and exits non-zero.
+Additional Test262 runner flags can be appended to the command; the GitHub
+workflow uses this to preserve its detailed JSON and JUnit artifacts outside
+the temporary directory. In CI, `--baseline-ref main` loads the comparison
+baseline from the remote `main` branch before running, while still writing the
+new snapshot into the checked-out branch for the consistency diff. The workflow
+fails when the regenerated `COVERAGE.md` or `full-baseline.json` differs from the
+PR's committed files, so manually edited or stale reports are not accepted.
 
 ## Roadmap
 

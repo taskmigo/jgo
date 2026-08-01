@@ -61,6 +61,37 @@ func TestArrayStringAndObjectBuiltins(t *testing.T) {
 		t.Fatalf("value=%v error=%v", v, err)
 	}
 }
+
+func TestObjectIs(t *testing.T) {
+	r := New()
+	source := `
+		let object = {};
+		Object.is(NaN, NaN) && !Object.is(+0, -0) && Object.is(-0, -0) &&
+		Object.is() && Object.is(undefined) && Object.is(null, null) &&
+		!Object.is(undefined, null) && Object.is("x", "x") && !Object.is("x", "y") &&
+		Object.is(object, object) && !Object.is({}, {}) && Object.is(1, 1, 2, 3) &&
+		Object.is.call(null, NaN, NaN) && !Object.is.call({}, +0, -0) &&
+		!Object.is(Symbol(), Symbol()) &&
+		Object.is.length === 2 && Object.is.name === "is"`
+	value, err := r.RunString(source)
+	if err != nil || !value.Bool() {
+		t.Fatalf("value=%v error=%v", value, err)
+	}
+	if _, err := r.RunString(`new Object.is()`); err == nil {
+		t.Fatal("Object.is was constructible")
+	}
+	if value, err := r.RunString(`Object.getOwnPropertyDescriptor`); err != nil || !value.IsUndefined() {
+		t.Fatalf("partial Object.getOwnPropertyDescriptor leaked into the runtime: value=%v error=%v", value, err)
+	}
+}
+
+func TestEqualityRegression(t *testing.T) {
+	value, err := New().RunString(`!(NaN === NaN) && +0 === -0 && [NaN].includes(NaN) && [+0].includes(-0)`)
+	if err != nil || !value.Bool() {
+		t.Fatalf("value=%v error=%v", value, err)
+	}
+}
+
 func TestLimitsAndCancellation(t *testing.T) {
 	_, e := New(WithMaxSteps(20)).RunString(`while(true){}`)
 	if !errors.Is(e, ErrStepLimit) {

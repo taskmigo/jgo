@@ -1,7 +1,9 @@
 name: Test262
 on:
   pull_request:
-  push: {branches: [main]}
+    branches: [main]
+  push:
+    branches: [main]
   workflow_dispatch:
 jobs:
   full-suite:
@@ -11,24 +13,35 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with: {go-version: '1.25.x'}
-      - uses: actions/checkout@v4
-        with:
-          repository: tc39/test262
-          # Keep this synchronized with test262/selection.json. Unlike the
-          # previous value, this is an actual commit in tc39/test262.
-          ref: b363f29d3c43c626dc852744ad64a0b48a003693
-          path: test262-upstream
-      - name: Verify pinned Test262 checkout
-        run: test "$(git -C test262-upstream rev-parse HEAD)" = "$(jq -r .commit test262/selection.json)"
       - name: Run complete pinned Test262 suite
         run: >-
-          go run ./cmd/test262 -all -test262 test262-upstream
-          -baseline test262/full-baseline.json -refresh-baseline -timeout 100ms
+          ./scripts/update-test262-coverage.sh
+          --baseline-ref main
           -json test262-report.json -junit test262-report.xml
-          -coverage COVERAGE.md
-      - name: Verify committed coverage report and baseline
+      - name: Verify generated coverage files are committed
         if: always()
-        run: git diff --exit-code -- COVERAGE.md test262/full-baseline.json
+        run: |
+          if [[ ! -f test262-report.json || ! -f test262-report.xml ]]; then
+            {
+              echo '> [!CAUTION]'
+              echo '> **Coverage generation failed before all reports were written.**'
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+          if git diff --quiet -- COVERAGE.md test262/full-baseline.json; then
+            {
+              echo '> [!TIP]'
+              echo '> **Generated `COVERAGE.md` and `full-baseline.json` are up-to-date with this PR.**'
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            {
+              echo '> [!CAUTION]'
+              echo '> **Generated coverage files are stale. Regenerate and commit them.**'
+            } >> "$GITHUB_STEP_SUMMARY"
+            git diff -- COVERAGE.md test262/full-baseline.json
+            exit 1
+          fi
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -157,6 +157,30 @@ func New(options ...Option) *Runtime {
 		_, ok := property(args[0], args[1].String())
 		return Boolean(ok), nil
 	})
+	objectIs := nativeValue(func(_ *Runtime, _ Value, args []Value) (Value, error) {
+		x, y := Undefined(), Undefined()
+		if len(args) > 0 {
+			x = args[0]
+		}
+		if len(args) > 1 {
+			y = args[1]
+		}
+		return Boolean(SameValue(x, y)), nil
+	})
+	objectIs.f.noConstruct = true
+	objectIs.f.props["name"] = String("is")
+	objectIs.f.props["length"] = Number(2)
+	objectIs.f.props["call"] = nativeValue(func(_ *Runtime, _ Value, args []Value) (Value, error) {
+		x, y := Undefined(), Undefined()
+		if len(args) > 1 {
+			x = args[1]
+		}
+		if len(args) > 2 {
+			y = args[2]
+		}
+		return Boolean(SameValue(x, y)), nil
+	})
+	objectConstructor.f.props["is"] = objectIs
 	r.global.define("Object", objectConstructor, false)
 	globalThis := NewObject()
 	globalThis.o.props["globalThis"] = globalThis
@@ -514,13 +538,13 @@ func (r *Runtime) evalBinary(n *binaryExpr, e *environment) (Value, error) {
 	case TokGE:
 		return Boolean(number(l) >= number(q)), nil
 	case TokEQ, TokStrictEQ:
-		return Boolean(equal(l, q)), nil
+		return Boolean(strictlyEqual(l, q)), nil
 	case TokNE, TokStrictNE:
-		return Boolean(!equal(l, q)), nil
+		return Boolean(!strictlyEqual(l, q)), nil
 	}
 	return q, nil
 }
-func equal(a, b Value) bool {
+func strictlyEqual(a, b Value) bool {
 	if a.k != b.k {
 		return false
 	}
@@ -542,6 +566,7 @@ func equal(a, b Value) bool {
 	}
 	return false
 }
+
 func (r *Runtime) makeFunction(n *functionExpr, e *environment) Value {
 	return Value{k: KindFunction, f: &function{identity: newIdentity(), props: map[string]Value{}, params: n.params, body: n.body, closure: e, name: n.name}}
 }
