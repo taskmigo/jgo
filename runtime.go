@@ -55,12 +55,13 @@ type Config struct {
 }
 
 type Runtime struct {
-	global         *environment
-	config         Config
-	exec           *execution
-	symbols        map[string]*symbolValue
-	iteratorSymbol *symbolValue
-	intrinsics     intrinsics
+	global            *environment
+	config            Config
+	exec              *execution
+	symbols           map[string]*symbolValue
+	iteratorSymbol    *symbolValue
+	hasInstanceSymbol *symbolValue
+	intrinsics        intrinsics
 }
 
 type Program struct {

@@ -22,6 +22,16 @@ func TestUnterminatedString(t *testing.T) {
 	}
 }
 
+func TestLexerRecognizesUpdateOperatorsAsSingleTokens(t *testing.T) {
+	tokens, err := lex("++value; --value")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tokens[0].Type != TokPlusPlus || tokens[3].Type != TokMinusMinus {
+		t.Fatalf("update tokens = %q, %q", tokens[0].Type, tokens[3].Type)
+	}
+}
+
 func TestLexerPreservesTokenSpansAcrossTrivia(t *testing.T) {
 	tokens, err := lex("/* note */\n  let value=12;")
 	if err != nil {

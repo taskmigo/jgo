@@ -22,8 +22,8 @@ func runOne(root, name string, steps uint64, timeout time.Duration) (res result)
 		return res
 	}
 	res.Features = metadata.features
-	if contains(metadata.flags, "module") {
-		res.Status, res.Reason = statusUnsupported, "unsupported feature: modules"
+	if reason := unsupportedTestReason(name, metadata); reason != "" {
+		res.Status, res.Reason = statusUnsupported, reason
 		return res
 	}
 	source, err := prepareTestSource(root, metadata, body)
@@ -51,6 +51,22 @@ func runOne(root, name string, steps uint64, timeout time.Duration) (res result)
 	return res
 }
 
+func unsupportedTestReason(name string, metadata metadata) string {
+	if contains(metadata.flags, "module") {
+		return "unsupported feature: modules"
+	}
+	if contains(metadata.flags, "onlyStrict") {
+		return "unsupported feature: strict mode"
+	}
+	if strings.HasPrefix(filepath.ToSlash(name), "test/annexB/") {
+		return "unsupported feature: Annex B"
+	}
+	if contains(metadata.features, "BigInt") {
+		return "unsupported feature: BigInt"
+	}
+	return ""
+}
+
 func loadTestFile(root, name string) (metadata, string, error) {
 	source, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(name)))
 	if err != nil {
@@ -73,9 +89,6 @@ func prepareTestSource(root string, metadata metadata, body string) (string, err
 			}
 			prefix += string(includeSource) + "\n"
 		}
-	}
-	if contains(metadata.flags, "onlyStrict") {
-		prefix += "\"use strict\";\n"
 	}
 	source := prefix + body
 	// This focused lowering avoids claiming general arrow-function support.

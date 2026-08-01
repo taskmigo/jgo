@@ -61,47 +61,57 @@ func newListIterator(runtime *Runtime, values []Value) Value {
 }
 
 func iteratorToList(runtime *Runtime, iterable Value) ([]Value, bool, error) {
+	values := make([]Value, 0)
+	found, err := iteratorForEach(runtime, iterable, func(value Value) error {
+		values = append(values, value)
+		return nil
+	})
+	return values, found, err
+}
+
+func iteratorForEach(runtime *Runtime, iterable Value, visit func(Value) error) (bool, error) {
 	method, found, err := getProperty(runtime, iterable, PropertyKey{symbol: runtime.iteratorSymbol})
 	if err != nil || !found || method.IsUndefined() {
-		return nil, false, err
+		return false, err
 	}
 	if method.k != KindFunction || method.f.call == nil {
-		return nil, false, typeError("iterator method is not callable")
+		return false, typeError("iterator method is not callable")
 	}
 	iterator, err := runtime.call(method, iterable, nil, Span{})
 	if err != nil {
-		return nil, false, err
+		return false, err
 	}
 	if objectRecord(iterator) == nil {
-		return nil, false, typeError("iterator is not an object")
+		return false, typeError("iterator is not an object")
 	}
-	values := make([]Value, 0)
 	for {
 		next, _, err := getProperty(runtime, iterator, StringKey("next"))
 		if err != nil {
-			return nil, false, err
+			return false, err
 		}
 		if next.k != KindFunction || next.f.call == nil {
-			return nil, false, typeError("iterator next is not callable")
+			return false, typeError("iterator next is not callable")
 		}
 		result, err := runtime.call(next, iterator, nil, Span{})
 		if err != nil {
-			return nil, false, err
+			return false, err
 		}
 		if objectRecord(result) == nil {
-			return nil, false, typeError("iterator result is not an object")
+			return false, typeError("iterator result is not an object")
 		}
 		done, _, err := getProperty(runtime, result, StringKey("done"))
 		if err != nil {
-			return nil, false, err
+			return false, err
 		}
 		if toBoolean(done) {
-			return values, true, nil
+			return true, nil
 		}
 		value, _, err := getProperty(runtime, result, StringKey("value"))
 		if err != nil {
-			return nil, false, err
+			return false, err
 		}
-		values = append(values, value)
+		if err := visit(value); err != nil {
+			return false, err
+		}
 	}
 }

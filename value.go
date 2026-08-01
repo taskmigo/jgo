@@ -152,10 +152,12 @@ type Object struct {
 	prototype  *Object
 	array      bool
 	weakmap    *weakMapData
+	boxed      Value
+	extensible bool
 }
 
 func newObject(prototype *Object) *Object {
-	return &Object{identity: newIdentity(), properties: make(map[PropertyKey]PropertyDescriptor), prototype: prototype}
+	return &Object{identity: newIdentity(), properties: make(map[PropertyKey]PropertyDescriptor), prototype: prototype, extensible: true}
 }
 
 func NewObject() Value { return Value{k: KindObject, o: newObject(nil)} }

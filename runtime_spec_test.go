@@ -35,6 +35,17 @@ func TestECMAScriptCoercionAndEquality(t *testing.T) {
 	}
 }
 
+func TestLogicalOperatorsReturnOperandsWithoutCoercion(t *testing.T) {
+	value := evaluateForTest(t, New(Config{}), `let symbol=Symbol(); symbol && true`)
+	if !value.ToBoolean() {
+		t.Fatalf("symbol && true = %s", value.Inspect())
+	}
+	value = evaluateForTest(t, New(Config{}), `let object={}; false || object`)
+	if value.Kind() != KindObject {
+		t.Fatalf("false || object = %s", value.Inspect())
+	}
+}
+
 func TestObjectToPrimitiveHooks(t *testing.T) {
 	value := evaluateForTest(t, New(Config{}), `
 		let numeric={valueOf:function(){return 7;}};
@@ -80,6 +91,17 @@ func TestUTF16StringSemantics(t *testing.T) {
 	if value := evaluateForTest(t, New(Config{MaxSteps: 1_000}), `"".repeat(2147483647)`); value.Inspect() != "" {
 		t.Fatalf("large empty repeat = %q", value.Inspect())
 	}
+	if value := evaluateForTest(t, New(Config{}), `"А" === "\А"`); !value.ToBoolean() {
+		t.Fatal("non-ASCII NonEscapeSequence was not preserved")
+	}
+}
+
+func TestDuplicateFunctionDeclarationUsesLastDeclaration(t *testing.T) {
+	value := evaluateForTest(t, New(Config{}), `function f(){return 1;} function f(){return 2;} f()`)
+	number, _ := value.ToNumber()
+	if number != 2 {
+		t.Fatalf("duplicate function result = %v", number)
+	}
 }
 
 func TestSymbolRegistryAndSymbolPropertyKeys(t *testing.T) {
@@ -96,6 +118,19 @@ func TestSymbolRegistryAndSymbolPropertyKeys(t *testing.T) {
 	number, _ := value.ToNumber()
 	if err != nil || !found || number != 42 {
 		t.Fatalf("symbol property = %v, %t, %v", number, found, err)
+	}
+}
+
+func TestStringSymbolConstructionAndSymbolHasInstance(t *testing.T) {
+	runtime := New(Config{})
+	if _, err := runtime.EvaluateString(context.Background(), `new String(Symbol())`); err == nil {
+		t.Fatal("new String(Symbol()) did not throw")
+	}
+	value := evaluateForTest(t, runtime, `
+		function Constructor(){} let instance=new Constructor();
+		Constructor[Symbol.hasInstance](instance)`)
+	if !value.ToBoolean() {
+		t.Fatal("Symbol.hasInstance did not follow the prototype chain")
 	}
 }
 

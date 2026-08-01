@@ -35,6 +35,14 @@ type unaryExpr struct {
 
 func (*unaryExpr) exprNode() {}
 
+type updateExpr struct {
+	base
+	op     TokenType
+	target expr
+}
+
+func (*updateExpr) exprNode() {}
+
 type binaryExpr struct {
 	base
 	left  expr

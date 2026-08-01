@@ -34,6 +34,18 @@ func TestWeakMapConstructorAndVarSemantics(t *testing.T) {
 	}
 }
 
+func TestWeakMapConstructorCallsOverriddenAdderForEachEntry(t *testing.T) {
+	value := evaluateForTest(t, New(Config{}), `
+		let first={}; let second={}; let calls=[]; let original=WeakMap.prototype.set;
+		WeakMap.prototype.set=function(key,value){calls.push({receiver:this,key:key,value:value}); return original.call(this,key,value);};
+		let map=new WeakMap([[first,42],[second,43]]);
+		calls.length===2 && calls[0].receiver===map && calls[0].key===first && calls[0].value===42 &&
+		calls[1].receiver===map && calls[1].key===second && calls[1].value===43`)
+	if !value.ToBoolean() {
+		t.Fatalf("WeakMap constructor calls = %s", value.Inspect())
+	}
+}
+
 func TestWeakMapSymbolAndGetOrInsert(t *testing.T) {
 	interpreter := New(Config{})
 	result, err := interpreter.EvaluateString(context.Background(), `var m=new WeakMap(); var s=Symbol("key"); m.set(s, 1); m.getOrInsert(s, 2) + m.getOrInsert(Symbol(), 3)`)

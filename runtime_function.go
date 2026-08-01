@@ -5,7 +5,7 @@ import "runtime"
 func (interpreter *Runtime) makeFunction(expression *functionExpr, closure *environment) Value {
 	functionValue := Value{k: KindFunction, f: &function{
 		identity: newIdentity(),
-		object:   newObject(nil),
+		object:   newObject(interpreter.intrinsics.functionPrototype),
 		params:   expression.params,
 		body:     expression.body,
 		closure:  closure,
@@ -15,7 +15,12 @@ func (interpreter *Runtime) makeFunction(expression *functionExpr, closure *envi
 		return runtime.callECMAScriptFunction(functionValue, this, arguments)
 	}
 	functionValue.f.construct = func(runtime *Runtime, _ Value, arguments []Value) (Value, error) {
-		instance := runtime.newOrdinaryObject()
+		prototypeValue, _, _ := getProperty(runtime, functionValue, StringKey("prototype"))
+		prototype := objectRecord(prototypeValue)
+		if prototype == nil {
+			prototype = runtime.intrinsics.objectPrototype
+		}
+		instance := Value{k: KindObject, o: newObject(prototype)}
 		result, err := runtime.callECMAScriptFunction(functionValue, instance, arguments)
 		if err != nil {
 			return Undefined(), err
@@ -25,6 +30,11 @@ func (interpreter *Runtime) makeFunction(expression *functionExpr, closure *envi
 		}
 		return instance, nil
 	}
+	prototype := newObject(interpreter.intrinsics.objectPrototype)
+	functionValue.f.object.properties[StringKey("prototype")] = PropertyDescriptor{
+		Value: Value{k: KindObject, o: prototype}, Writable: true,
+	}
+	prototype.properties[StringKey("constructor")] = PropertyDescriptor{Value: functionValue, Writable: true, Configurable: true}
 	return functionValue
 }
 
@@ -109,9 +119,10 @@ func (interpreter *Runtime) invoke(functionValue, this Value, arguments []Value,
 	return value, err
 }
 
-func (interpreter *Runtime) callECMAScriptFunction(functionValue, _ Value, arguments []Value) (Value, error) {
+func (interpreter *Runtime) callECMAScriptFunction(functionValue, thisValue Value, arguments []Value) (Value, error) {
 	function := functionValue.f
 	environment := newEnvironment(function.closure)
+	environment.bindings["this"] = binding{value: thisValue, initialized: true}
 	for index, parameter := range function.params {
 		argument := Undefined()
 		if index < len(arguments) {

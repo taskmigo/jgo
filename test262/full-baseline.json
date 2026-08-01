@@ -9,44 +9,44 @@
       "unsupported": 31
     },
     "Array.fromAsync": {
-      "fail": 0,
+      "fail": 1,
       "pass": 0,
       "skip": 0,
       "timeout": 0,
       "total": 95,
-      "unsupported": 95
+      "unsupported": 94
     },
     "Array.prototype.at": {
       "fail": 0,
-      "pass": 0,
+      "pass": 2,
       "skip": 0,
       "timeout": 0,
       "total": 12,
-      "unsupported": 12
+      "unsupported": 10
     },
     "Array.prototype.flat": {
-      "fail": 0,
+      "fail": 2,
       "pass": 0,
       "skip": 0,
       "timeout": 0,
       "total": 15,
-      "unsupported": 15
+      "unsupported": 13
     },
     "Array.prototype.flatMap": {
-      "fail": 0,
+      "fail": 4,
       "pass": 0,
       "skip": 0,
       "timeout": 0,
       "total": 21,
-      "unsupported": 21
+      "unsupported": 17
     },
     "Array.prototype.includes": {
-      "fail": 0,
-      "pass": 11,
+      "fail": 1,
+      "pass": 13,
       "skip": 0,
       "timeout": 0,
       "total": 69,
-      "unsupported": 58
+      "unsupported": 55
     },
     "Array.prototype.values": {
       "fail": 0,
@@ -89,12 +89,12 @@
       "unsupported": 101
     },
     "BigInt": {
-      "fail": 5,
-      "pass": 40,
+      "fail": 0,
+      "pass": 0,
       "skip": 0,
       "timeout": 0,
       "total": 1501,
-      "unsupported": 1456
+      "unsupported": 1501
     },
     "DataView": {
       "fail": 0,
@@ -410,11 +410,11 @@
     },
     "Object.hasOwn": {
       "fail": 0,
-      "pass": 48,
+      "pass": 24,
       "skip": 0,
       "timeout": 0,
       "total": 62,
-      "unsupported": 14
+      "unsupported": 38
     },
     "Object.is": {
       "fail": 0,
@@ -473,12 +473,12 @@
       "unsupported": 451
     },
     "Reflect.construct": {
-      "fail": 6,
-      "pass": 6,
+      "fail": 2,
+      "pass": 3,
       "skip": 0,
       "timeout": 0,
       "total": 704,
-      "unsupported": 692
+      "unsupported": 699
     },
     "Reflect.set": {
       "fail": 0,
@@ -489,12 +489,12 @@
       "unsupported": 44
     },
     "Reflect.setPrototypeOf": {
-      "fail": 0,
+      "fail": 1,
       "pass": 4,
       "skip": 0,
       "timeout": 0,
       "total": 23,
-      "unsupported": 19
+      "unsupported": 18
     },
     "RegExp.escape": {
       "fail": 0,
@@ -538,11 +538,11 @@
     },
     "String.prototype.at": {
       "fail": 0,
-      "pass": 0,
+      "pass": 5,
       "skip": 0,
       "timeout": 0,
       "total": 11,
-      "unsupported": 11
+      "unsupported": 6
     },
     "String.prototype.endsWith": {
       "fail": 0,
@@ -561,60 +561,60 @@
       "unsupported": 8
     },
     "String.prototype.isWellFormed": {
-      "fail": 0,
+      "fail": 2,
       "pass": 0,
       "skip": 0,
       "timeout": 0,
       "total": 8,
-      "unsupported": 8
+      "unsupported": 6
     },
     "String.prototype.matchAll": {
-      "fail": 0,
+      "fail": 1,
       "pass": 0,
       "skip": 0,
       "timeout": 0,
       "total": 16,
-      "unsupported": 16
+      "unsupported": 15
     },
     "String.prototype.replaceAll": {
       "fail": 6,
-      "pass": 4,
+      "pass": 6,
       "skip": 0,
       "timeout": 0,
       "total": 41,
-      "unsupported": 31
+      "unsupported": 29
     },
     "String.prototype.toWellFormed": {
-      "fail": 0,
+      "fail": 2,
       "pass": 0,
       "skip": 0,
       "timeout": 0,
       "total": 8,
-      "unsupported": 8
+      "unsupported": 6
     },
     "String.prototype.trimEnd": {
       "fail": 0,
-      "pass": 0,
+      "pass": 6,
       "skip": 0,
       "timeout": 0,
       "total": 24,
-      "unsupported": 24
+      "unsupported": 18
     },
     "String.prototype.trimStart": {
       "fail": 0,
-      "pass": 0,
+      "pass": 6,
       "skip": 0,
       "timeout": 0,
       "total": 23,
-      "unsupported": 23
+      "unsupported": 17
     },
     "Symbol": {
-      "fail": 6,
-      "pass": 135,
+      "fail": 7,
+      "pass": 148,
       "skip": 0,
       "timeout": 0,
       "total": 1494,
-      "unsupported": 1353
+      "unsupported": 1339
     },
     "Symbol.asyncIterator": {
       "fail": 0,
@@ -626,11 +626,11 @@
     },
     "Symbol.hasInstance": {
       "fail": 0,
-      "pass": 2,
+      "pass": 5,
       "skip": 0,
       "timeout": 0,
       "total": 17,
-      "unsupported": 15
+      "unsupported": 12
     },
     "Symbol.isConcatSpreadable": {
       "fail": 0,
@@ -641,20 +641,20 @@
       "unsupported": 33
     },
     "Symbol.iterator": {
-      "fail": 7,
+      "fail": 10,
       "pass": 8,
       "skip": 0,
       "timeout": 0,
       "total": 1867,
-      "unsupported": 1852
+      "unsupported": 1849
     },
     "Symbol.match": {
       "fail": 0,
-      "pass": 2,
+      "pass": 1,
       "skip": 0,
       "timeout": 0,
       "total": 88,
-      "unsupported": 86
+      "unsupported": 87
     },
     "Symbol.matchAll": {
       "fail": 0,
@@ -705,28 +705,28 @@
       "unsupported": 57
     },
     "Symbol.toPrimitive": {
-      "fail": 4,
-      "pass": 10,
+      "fail": 5,
+      "pass": 11,
       "skip": 0,
       "timeout": 0,
       "total": 233,
-      "unsupported": 219
+      "unsupported": 217
     },
     "Symbol.toStringTag": {
-      "fail": 1,
-      "pass": 0,
+      "fail": 3,
+      "pass": 1,
       "skip": 0,
       "timeout": 0,
       "total": 131,
-      "unsupported": 130
+      "unsupported": 127
     },
     "Symbol.unscopables": {
       "fail": 0,
-      "pass": 0,
+      "pass": 1,
       "skip": 0,
       "timeout": 0,
       "total": 45,
-      "unsupported": 45
+      "unsupported": 44
     },
     "Temporal": {
       "fail": 0,
@@ -786,11 +786,11 @@
     },
     "WeakMap": {
       "fail": 0,
-      "pass": 30,
+      "pass": 37,
       "skip": 0,
       "timeout": 0,
       "total": 79,
-      "unsupported": 49
+      "unsupported": 42
     },
     "WeakRef": {
       "fail": 4,
@@ -809,28 +809,28 @@
       "unsupported": 27
     },
     "__getter__": {
-      "fail": 0,
-      "pass": 0,
-      "skip": 0,
-      "timeout": 0,
-      "total": 27,
-      "unsupported": 27
-    },
-    "__proto__": {
       "fail": 1,
       "pass": 0,
       "skip": 0,
       "timeout": 0,
+      "total": 27,
+      "unsupported": 26
+    },
+    "__proto__": {
+      "fail": 2,
+      "pass": 0,
+      "skip": 0,
+      "timeout": 0,
       "total": 20,
-      "unsupported": 19
+      "unsupported": 18
     },
     "__setter__": {
-      "fail": 0,
+      "fail": 1,
       "pass": 0,
       "skip": 0,
       "timeout": 0,
       "total": 27,
-      "unsupported": 27
+      "unsupported": 26
     },
     "align-detached-buffer-semantics-with-web-reality": {
       "fail": 0,
@@ -874,27 +874,27 @@
     },
     "arrow-function": {
       "fail": 0,
-      "pass": 65,
+      "pass": 57,
       "skip": 0,
       "timeout": 0,
       "total": 949,
-      "unsupported": 884
+      "unsupported": 892
     },
     "async-functions": {
       "fail": 36,
-      "pass": 167,
+      "pass": 165,
       "skip": 0,
       "timeout": 0,
       "total": 705,
-      "unsupported": 502
+      "unsupported": 504
     },
     "async-iteration": {
       "fail": 32,
-      "pass": 561,
+      "pass": 528,
       "skip": 0,
       "timeout": 0,
       "total": 4971,
-      "unsupported": 4378
+      "unsupported": 4411
     },
     "await-dictionary": {
       "fail": 0,
@@ -906,11 +906,11 @@
     },
     "caller": {
       "fail": 0,
-      "pass": 5,
+      "pass": 6,
       "skip": 0,
       "timeout": 0,
       "total": 23,
-      "unsupported": 18
+      "unsupported": 17
     },
     "canonical-tz": {
       "fail": 0,
@@ -962,11 +962,11 @@
     },
     "class-methods-private": {
       "fail": 0,
-      "pass": 344,
+      "pass": 336,
       "skip": 0,
       "timeout": 0,
       "total": 1709,
-      "unsupported": 1365
+      "unsupported": 1373
     },
     "class-static-block": {
       "fail": 11,
@@ -994,11 +994,11 @@
     },
     "class-static-methods-private": {
       "fail": 0,
-      "pass": 162,
+      "pass": 154,
       "skip": 0,
       "timeout": 0,
       "total": 1513,
-      "unsupported": 1351
+      "unsupported": 1359
     },
     "coalesce-expression": {
       "fail": 0,
@@ -1042,35 +1042,35 @@
     },
     "default-parameters": {
       "fail": 22,
-      "pass": 197,
+      "pass": 194,
       "skip": 0,
       "timeout": 0,
       "total": 2269,
-      "unsupported": 2050
+      "unsupported": 2053
     },
     "destructuring-assignment": {
       "fail": 0,
-      "pass": 90,
+      "pass": 74,
       "skip": 0,
       "timeout": 0,
       "total": 141,
-      "unsupported": 51
+      "unsupported": 67
     },
     "destructuring-binding": {
       "fail": 0,
-      "pass": 519,
+      "pass": 466,
       "skip": 0,
       "timeout": 0,
       "total": 6637,
-      "unsupported": 6118
+      "unsupported": 6171
     },
     "dynamic-import": {
-      "fail": 199,
-      "pass": 191,
+      "fail": 196,
+      "pass": 193,
       "skip": 0,
       "timeout": 0,
       "total": 1011,
-      "unsupported": 621
+      "unsupported": 622
     },
     "error-cause": {
       "fail": 0,
@@ -1130,19 +1130,19 @@
     },
     "generators": {
       "fail": 20,
-      "pass": 402,
+      "pass": 376,
       "skip": 0,
       "timeout": 0,
       "total": 4119,
-      "unsupported": 3697
+      "unsupported": 3723
     },
     "globalThis": {
-      "fail": 0,
+      "fail": 1,
       "pass": 0,
       "skip": 0,
       "timeout": 0,
       "total": 148,
-      "unsupported": 148
+      "unsupported": 147
     },
     "hashbang": {
       "fail": 17,
@@ -1169,12 +1169,12 @@
       "unsupported": 66
     },
     "import-attributes": {
-      "fail": 1,
+      "fail": 0,
       "pass": 0,
       "skip": 0,
       "timeout": 0,
       "total": 101,
-      "unsupported": 100
+      "unsupported": 101
     },
     "import-bytes": {
       "fail": 0,
@@ -1225,12 +1225,12 @@
       "unsupported": 78
     },
     "iterator-helpers": {
-      "fail": 2,
+      "fail": 3,
       "pass": 1,
       "skip": 0,
       "timeout": 0,
       "total": 567,
-      "unsupported": 564
+      "unsupported": 563
     },
     "iterator-includes": {
       "fail": 0,
@@ -1298,11 +1298,11 @@
     },
     "logical-assignment-operators": {
       "fail": 0,
-      "pass": 12,
+      "pass": 6,
       "skip": 0,
       "timeout": 0,
       "total": 108,
-      "unsupported": 96
+      "unsupported": 102
     },
     "new.target": {
       "fail": 0,
@@ -1322,11 +1322,11 @@
     },
     "numeric-separator-literal": {
       "fail": 0,
-      "pass": 64,
+      "pass": 38,
       "skip": 0,
       "timeout": 0,
       "total": 159,
-      "unsupported": 95
+      "unsupported": 121
     },
     "object-rest": {
       "fail": 0,
@@ -1338,11 +1338,11 @@
     },
     "object-spread": {
       "fail": 0,
-      "pass": 24,
+      "pass": 0,
       "skip": 0,
       "timeout": 0,
       "total": 135,
-      "unsupported": 111
+      "unsupported": 135
     },
     "optional-catch-binding": {
       "fail": 1,
@@ -1369,20 +1369,20 @@
       "unsupported": 156
     },
     "path:annexB/language": {
-      "fail": 26,
-      "pass": 53,
+      "fail": 0,
+      "pass": 0,
       "skip": 0,
       "timeout": 0,
       "total": 819,
-      "unsupported": 740
+      "unsupported": 819
     },
     "path:built-ins/Array": {
-      "fail": 15,
-      "pass": 139,
+      "fail": 12,
+      "pass": 153,
       "skip": 0,
       "timeout": 0,
       "total": 2467,
-      "unsupported": 2313
+      "unsupported": 2302
     },
     "path:built-ins/ArrayBuffer": {
       "fail": 0,
@@ -1418,11 +1418,11 @@
     },
     "path:built-ins/Date": {
       "fail": 0,
-      "pass": 4,
+      "pass": 5,
       "skip": 0,
       "timeout": 0,
       "total": 476,
-      "unsupported": 472
+      "unsupported": 471
     },
     "path:built-ins/Error": {
       "fail": 0,
@@ -1433,12 +1433,12 @@
       "unsupported": 35
     },
     "path:built-ins/Function": {
-      "fail": 19,
-      "pass": 67,
+      "fail": 0,
+      "pass": 69,
       "skip": 0,
       "timeout": 0,
       "total": 413,
-      "unsupported": 327
+      "unsupported": 344
     },
     "path:built-ins/Infinity": {
       "fail": 1,
@@ -1450,11 +1450,11 @@
     },
     "path:built-ins/JSON": {
       "fail": 0,
-      "pass": 21,
+      "pass": 22,
       "skip": 0,
       "timeout": 0,
       "total": 107,
-      "unsupported": 86
+      "unsupported": 85
     },
     "path:built-ins/Map": {
       "fail": 1,
@@ -1505,12 +1505,12 @@
       "unsupported": 277
     },
     "path:built-ins/Object": {
-      "fail": 171,
-      "pass": 259,
+      "fail": 59,
+      "pass": 556,
       "skip": 0,
       "timeout": 0,
       "total": 3077,
-      "unsupported": 2647
+      "unsupported": 2462
     },
     "path:built-ins/Promise": {
       "fail": 1,
@@ -1561,12 +1561,12 @@
       "unsupported": 0
     },
     "path:built-ins/String": {
-      "fail": 1,
-      "pass": 64,
+      "fail": 18,
+      "pass": 87,
       "skip": 0,
       "timeout": 0,
       "total": 904,
-      "unsupported": 839
+      "unsupported": 799
     },
     "path:built-ins/ThrowTypeError": {
       "fail": 0,
@@ -1577,12 +1577,12 @@
       "unsupported": 13
     },
     "path:built-ins/WeakMap": {
-      "fail": 2,
-      "pass": 30,
+      "fail": 0,
+      "pass": 34,
       "skip": 0,
       "timeout": 0,
       "total": 54,
-      "unsupported": 22
+      "unsupported": 20
     },
     "path:built-ins/WeakSet": {
       "fail": 1,
@@ -1633,12 +1633,12 @@
       "unsupported": 8
     },
     "path:built-ins/global": {
-      "fail": 1,
-      "pass": 2,
+      "fail": 0,
+      "pass": 4,
       "skip": 0,
       "timeout": 0,
       "total": 27,
-      "unsupported": 24
+      "unsupported": 23
     },
     "path:built-ins/isFinite": {
       "fail": 0,
@@ -2721,28 +2721,28 @@
       "unsupported": 1
     },
     "path:language/arguments-object": {
-      "fail": 1,
-      "pass": 3,
+      "fail": 0,
+      "pass": 0,
       "skip": 0,
       "timeout": 0,
       "total": 124,
-      "unsupported": 120
+      "unsupported": 124
     },
     "path:language/asi": {
-      "fail": 5,
-      "pass": 67,
+      "fail": 4,
+      "pass": 70,
       "skip": 0,
       "timeout": 0,
       "total": 102,
-      "unsupported": 30
+      "unsupported": 28
     },
     "path:language/block-scope": {
-      "fail": 29,
+      "fail": 26,
       "pass": 37,
       "skip": 0,
       "timeout": 0,
       "total": 94,
-      "unsupported": 28
+      "unsupported": 31
     },
     "path:language/comments": {
       "fail": 0,
@@ -2761,20 +2761,20 @@
       "unsupported": 39
     },
     "path:language/directive-prologue": {
-      "fail": 12,
-      "pass": 11,
+      "fail": 18,
+      "pass": 21,
       "skip": 0,
       "timeout": 0,
       "total": 62,
-      "unsupported": 39
+      "unsupported": 23
     },
     "path:language/eval-code": {
       "fail": 0,
-      "pass": 8,
+      "pass": 7,
       "skip": 0,
       "timeout": 0,
       "total": 208,
-      "unsupported": 200
+      "unsupported": 201
     },
     "path:language/export": {
       "fail": 0,
@@ -2785,52 +2785,52 @@
       "unsupported": 3
     },
     "path:language/expressions": {
-      "fail": 123,
-      "pass": 639,
+      "fail": 94,
+      "pass": 615,
       "skip": 0,
       "timeout": 0,
       "total": 2662,
-      "unsupported": 1900
+      "unsupported": 1953
     },
     "path:language/function-code": {
-      "fail": 8,
-      "pass": 55,
+      "fail": 18,
+      "pass": 52,
       "skip": 0,
       "timeout": 0,
       "total": 217,
-      "unsupported": 154
+      "unsupported": 147
     },
     "path:language/future-reserved-words": {
-      "fail": 15,
-      "pass": 33,
+      "fail": 7,
+      "pass": 23,
       "skip": 0,
       "timeout": 0,
       "total": 55,
-      "unsupported": 7
+      "unsupported": 25
     },
     "path:language/global-code": {
-      "fail": 5,
-      "pass": 0,
+      "fail": 3,
+      "pass": 3,
       "skip": 0,
       "timeout": 0,
       "total": 31,
-      "unsupported": 26
+      "unsupported": 25
     },
     "path:language/identifier-resolution": {
       "fail": 0,
-      "pass": 5,
+      "pass": 4,
       "skip": 0,
       "timeout": 0,
       "total": 12,
-      "unsupported": 7
+      "unsupported": 8
     },
     "path:language/identifiers": {
-      "fail": 26,
+      "fail": 25,
       "pass": 132,
       "skip": 0,
       "timeout": 0,
       "total": 207,
-      "unsupported": 49
+      "unsupported": 50
     },
     "path:language/import": {
       "fail": 62,
@@ -2857,12 +2857,12 @@
       "unsupported": 11
     },
     "path:language/literals": {
-      "fail": 28,
-      "pass": 142,
+      "fail": 12,
+      "pass": 143,
       "skip": 0,
       "timeout": 0,
       "total": 262,
-      "unsupported": 92
+      "unsupported": 107
     },
     "path:language/module-code": {
       "fail": 156,
@@ -2913,20 +2913,20 @@
       "unsupported": 34
     },
     "path:language/statements": {
-      "fail": 182,
-      "pass": 313,
+      "fail": 117,
+      "pass": 308,
       "skip": 0,
       "timeout": 0,
       "total": 1437,
-      "unsupported": 942
+      "unsupported": 1012
     },
     "path:language/types": {
-      "fail": 3,
-      "pass": 50,
+      "fail": 2,
+      "pass": 53,
       "skip": 0,
       "timeout": 0,
       "total": 109,
-      "unsupported": 56
+      "unsupported": 54
     },
     "path:language/white-space": {
       "fail": 0,
@@ -2945,12 +2945,12 @@
       "unsupported": 1
     },
     "path:staging/sm": {
-      "fail": 10,
-      "pass": 36,
+      "fail": 9,
+      "pass": 49,
       "skip": 0,
-      "timeout": 2,
+      "timeout": 0,
       "total": 1192,
-      "unsupported": 1144
+      "unsupported": 1134
     },
     "path:staging/source-phase-imports": {
       "fail": 2,
@@ -3114,11 +3114,11 @@
     },
     "string-trimming": {
       "fail": 0,
-      "pass": 0,
+      "pass": 12,
       "skip": 0,
       "timeout": 0,
       "total": 54,
-      "unsupported": 54
+      "unsupported": 42
     },
     "super": {
       "fail": 2,
@@ -3130,11 +3130,11 @@
     },
     "symbols-as-weakmap-keys": {
       "fail": 0,
-      "pass": 1,
+      "pass": 8,
       "skip": 0,
       "timeout": 0,
       "total": 29,
-      "unsupported": 28
+      "unsupported": 21
     },
     "tail-call-optimization": {
       "fail": 0,
@@ -3178,11 +3178,11 @@
     },
     "upsert": {
       "fail": 0,
-      "pass": 13,
+      "pass": 15,
       "skip": 0,
       "timeout": 0,
       "total": 72,
-      "unsupported": 59
+      "unsupported": 57
     },
     "well-formed-json-stringify": {
       "fail": 0,
@@ -3195,18 +3195,18 @@
   },
   "commit": "b363f29d3c43c626dc852744ad64a0b48a003693",
   "counts": {
-    "fail": 1440,
-    "pass": 5626,
+    "fail": 1193,
+    "pass": 5748,
     "skip": 0,
-    "timeout": 2,
+    "timeout": 0,
     "total": 53869,
-    "unsupported": 46801
+    "unsupported": 46928
   },
   "coverage": {
-    "coveragePercent": 13.120718780745884,
-    "coveredPassPercent": 79.59818902093944,
-    "coveredTests": 7068,
-    "overallPassPercent": 10.44385453600401
+    "coveragePercent": 12.884961666264456,
+    "coveredPassPercent": 82.81227488834462,
+    "coveredTests": 6941,
+    "overallPassPercent": 10.67032987432475
   },
   "ecmaVersion": "ECMAScript 2027 draft snapshot 2026-08-01",
   "mode": "full"

@@ -339,6 +339,19 @@ func (p *parser) binary(min int) (expr, error) {
 	return left, nil
 }
 func (p *parser) unary() (expr, error) {
+	if p.match(TokPlusPlus, TokMinusMinus) {
+		operator := p.prev()
+		target, err := p.unary()
+		if err != nil {
+			return nil, err
+		}
+		switch target.(type) {
+		case *identExpr, *memberExpr:
+			return &updateExpr{base: base{Span{operator.Span.Start, target.span().End}}, op: operator.Type, target: target}, nil
+		default:
+			return nil, p.err(operator, "invalid update target")
+		}
+	}
 	if p.match(TokBang, TokMinus, TokPlus, TokTypeof) {
 		o := p.prev()
 		r, e := p.unary()

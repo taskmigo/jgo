@@ -52,6 +52,16 @@ func TestForLoopLexicalIterationsAndComma(t *testing.T) {
 	}
 }
 
+func TestPrefixUpdateAndPerIterationBindings(t *testing.T) {
+	value := evaluateForTest(t, New(Config{}), `
+		let closures=[];
+		for(let index=0; index<3; ++index){closures.push(function(){return index;});}
+		closures[0]()===0 && closures[1]()===1 && closures[2]()===2`)
+	if !value.ToBoolean() {
+		t.Fatalf("prefix update expression = %s", value.Inspect())
+	}
+}
+
 func TestLimitsAndCancellation(t *testing.T) {
 	_, err := New(Config{MaxSteps: 20}).EvaluateString(context.Background(), `while(true){}`)
 	if !errors.Is(err, ErrStepLimit) {

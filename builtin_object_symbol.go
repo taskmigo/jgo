@@ -1,7 +1,6 @@
 package gots
 
 func (runtime *Runtime) installSymbolBuiltin() {
-	runtime.iteratorSymbol = newSymbol(jsString(String("Symbol.iterator").s), false).sy
 	constructor := nativeValue(func(runtime *Runtime, _ Value, arguments []Value) (Value, error) {
 		description := jsString(nil)
 		if !argument(arguments, 0).IsUndefined() {
@@ -13,6 +12,10 @@ func (runtime *Runtime) installSymbolBuiltin() {
 		}
 		return newSymbol(description, false), nil
 	})
+	constructor.f.object.prototype = runtime.intrinsics.functionPrototype
+	linkConstructor(constructor, runtime.intrinsics.symbolPrototype)
+	defineBuiltin(runtime.intrinsics.symbolPrototype, "valueOf", defineFunctionMetadata(nativeValue(symbolValueOf), "valueOf", 0))
+	defineBuiltin(runtime.intrinsics.symbolPrototype, "toString", defineFunctionMetadata(nativeValue(symbolToString), "toString", 0))
 	defineBuiltin(constructor.f.object, "for", defineFunctionMetadata(nativeValue(func(runtime *Runtime, _ Value, arguments []Value) (Value, error) {
 		key, err := runtime.toString(argument(arguments, 0))
 		if err != nil {
@@ -27,7 +30,26 @@ func (runtime *Runtime) installSymbolBuiltin() {
 		return symbol, nil
 	}), "for", 1))
 	defineBuiltin(constructor.f.object, "iterator", Value{k: KindSymbol, sy: runtime.iteratorSymbol})
+	defineBuiltin(constructor.f.object, "hasInstance", Value{k: KindSymbol, sy: runtime.hasInstanceSymbol})
 	runtime.global.createMutableBinding("Symbol", defineFunctionMetadata(constructor, "Symbol", 0))
+}
+
+func symbolValueOf(_ *Runtime, receiver Value, _ []Value) (Value, error) {
+	if receiver.k == KindSymbol {
+		return receiver, nil
+	}
+	if receiver.k == KindObject && receiver.o.boxed.k == KindSymbol {
+		return receiver.o.boxed, nil
+	}
+	return Undefined(), typeError("Symbol.prototype.valueOf called on incompatible receiver")
+}
+
+func symbolToString(_ *Runtime, receiver Value, _ []Value) (Value, error) {
+	symbol, err := symbolValueOf(nil, receiver, nil)
+	if err != nil {
+		return Undefined(), err
+	}
+	return String("Symbol(" + symbol.sy.description.goString() + ")"), nil
 }
 
 func symbolRegistryKey(key jsString) string {
@@ -49,10 +71,20 @@ func (runtime *Runtime) installObjectBuiltin() {
 		if objectRecord(value) != nil {
 			return value, nil
 		}
+		if value.k != KindNull && value.k != KindUndefined {
+			prototype := runtime.intrinsics.objectPrototype
+			if value.k == KindSymbol {
+				prototype = runtime.intrinsics.symbolPrototype
+			}
+			object := newObject(prototype)
+			object.boxed = value
+			return Value{k: KindObject, o: object}, nil
+		}
 		return runtime.newOrdinaryObject(), nil
 	})
 	constructor.f.construct = constructor.f.call
 	constructor.f.object.prototype = runtime.intrinsics.functionPrototype
+	linkConstructor(constructor, runtime.intrinsics.objectPrototype)
 
 	defineBuiltin(constructor.f.object, "hasOwn", defineFunctionMetadata(nativeValue(func(runtime *Runtime, _ Value, arguments []Value) (Value, error) {
 		object := argument(arguments, 0)
@@ -77,7 +109,24 @@ func (runtime *Runtime) installObjectBuiltin() {
 	defineBuiltin(constructor.f.object, "create", defineFunctionMetadata(nativeValue(objectCreate), "create", 2))
 	defineBuiltin(constructor.f.object, "getPrototypeOf", defineFunctionMetadata(nativeValue(objectGetPrototypeOf), "getPrototypeOf", 1))
 	defineBuiltin(constructor.f.object, "setPrototypeOf", defineFunctionMetadata(nativeValue(objectSetPrototypeOf), "setPrototypeOf", 2))
+	defineBuiltin(constructor.f.object, "preventExtensions", defineFunctionMetadata(nativeValue(objectPreventExtensions), "preventExtensions", 1))
+	defineBuiltin(constructor.f.object, "isExtensible", defineFunctionMetadata(nativeValue(objectIsExtensible), "isExtensible", 1))
 	runtime.global.createMutableBinding("Object", defineFunctionMetadata(constructor, "Object", 1))
+}
+
+func objectPreventExtensions(_ *Runtime, _ Value, arguments []Value) (Value, error) {
+	target := argument(arguments, 0)
+	object := objectRecord(target)
+	if object == nil {
+		return target, nil
+	}
+	object.extensible = false
+	return target, nil
+}
+
+func objectIsExtensible(_ *Runtime, _ Value, arguments []Value) (Value, error) {
+	object := objectRecord(argument(arguments, 0))
+	return Boolean(object != nil && object.extensible), nil
 }
 
 func objectDefineProperty(runtime *Runtime, _ Value, arguments []Value) (Value, error) {
@@ -101,6 +150,17 @@ func objectDefineProperty(runtime *Runtime, _ Value, arguments []Value) (Value, 
 		return Undefined(), err
 	} else if found {
 		descriptor.Value = value
+	}
+	_, hasGetter, err := getProperty(runtime, descriptorObject, StringKey("get"))
+	if err != nil {
+		return Undefined(), err
+	}
+	_, hasSetter, err := getProperty(runtime, descriptorObject, StringKey("set"))
+	if err != nil {
+		return Undefined(), err
+	}
+	if hasGetter || hasSetter {
+		return Undefined(), typeError("accessor property descriptors are not supported")
 	}
 	for name, destination := range map[string]*bool{"writable": &descriptor.Writable, "enumerable": &descriptor.Enumerable, "configurable": &descriptor.Configurable} {
 		value, found, err := getProperty(runtime, descriptorObject, StringKey(name))
@@ -146,7 +206,7 @@ func objectGetOwnPropertyDescriptor(runtime *Runtime, _ Value, arguments []Value
 	return result, nil
 }
 
-func objectCreate(_ *Runtime, _ Value, arguments []Value) (Value, error) {
+func objectCreate(runtime *Runtime, _ Value, arguments []Value) (Value, error) {
 	prototypeValue := argument(arguments, 0)
 	var prototype *Object
 	if prototypeValue.k != KindNull {
@@ -155,7 +215,43 @@ func objectCreate(_ *Runtime, _ Value, arguments []Value) (Value, error) {
 			return Undefined(), typeError("Object prototype may only be an object or null")
 		}
 	}
-	return Value{k: KindObject, o: newObject(prototype)}, nil
+	created := Value{k: KindObject, o: newObject(prototype)}
+	properties := argument(arguments, 1)
+	if properties.IsUndefined() {
+		return created, nil
+	}
+	if properties.k == KindNull {
+		return Undefined(), typeError("Object.create properties cannot be null")
+	}
+	if properties.k == KindString {
+		for index := range len(properties.s) {
+			descriptorValue, _, err := getProperty(runtime, properties, StringKey(fmtInt(index)))
+			if err != nil {
+				return Undefined(), err
+			}
+			if _, err := objectDefineProperty(runtime, Undefined(), []Value{created, String(fmtInt(index)), descriptorValue}); err != nil {
+				return Undefined(), err
+			}
+		}
+		return created, nil
+	}
+	propertiesObject := objectRecord(properties)
+	if propertiesObject == nil {
+		return created, nil
+	}
+	for key, property := range propertiesObject.properties {
+		if !property.Enumerable {
+			continue
+		}
+		keyValue := String(key.name)
+		if key.isSymbol() {
+			keyValue = Value{k: KindSymbol, sy: key.symbol}
+		}
+		if _, err := objectDefineProperty(runtime, Undefined(), []Value{created, keyValue, property.Value}); err != nil {
+			return Undefined(), err
+		}
+	}
+	return created, nil
 }
 
 func objectGetPrototypeOf(_ *Runtime, _ Value, arguments []Value) (Value, error) {

@@ -57,6 +57,9 @@ func defineProperty(value Value, key PropertyKey, descriptor PropertyDescriptor)
 			return typeError("cannot assign to read-only property")
 		}
 	}
+	if _, found := object.properties[key]; !found && !object.extensible {
+		return typeError("cannot define property on non-extensible object")
+	}
 	if object.array && !key.isSymbol() && key.name == "length" {
 		return defineArrayLength(object, descriptor)
 	}

@@ -11,20 +11,40 @@ type weakMapData struct{ entries map[weakMapKey]Value }
 func (interpreter *Runtime) installWeakMapBuiltin() {
 	constructor := nativeValue(nil)
 	constructor.f.object.prototype = interpreter.intrinsics.functionPrototype
+	linkConstructor(constructor, interpreter.intrinsics.weakMapPrototype)
 	constructor.f.construct = func(runtime *Runtime, _ Value, arguments []Value) (Value, error) {
 		weakMap := runtime.newWeakMap()
 		iterable := argument(arguments, 0)
 		if iterable.k == KindUndefined || iterable.k == KindNull {
 			return weakMap, nil
 		}
-		entries, err := iterableEntries(runtime, iterable)
+		adder, _, err := getProperty(runtime, weakMap, StringKey("set"))
 		if err != nil {
 			return Undefined(), err
 		}
-		for _, entry := range entries {
-			if _, err := weakMap.o.weakmap.set(entry[0], entry[1]); err != nil {
-				return Undefined(), err
+		if adder.k != KindFunction || adder.f.call == nil {
+			return Undefined(), typeError("WeakMap set method is not callable")
+		}
+		found, err := iteratorForEach(runtime, iterable, func(entryValue Value) error {
+			if objectRecord(entryValue) == nil {
+				return typeError("WeakMap iterator value is not an object")
 			}
+			key, _, err := getProperty(runtime, entryValue, StringKey("0"))
+			if err != nil {
+				return err
+			}
+			value, _, err := getProperty(runtime, entryValue, StringKey("1"))
+			if err != nil {
+				return err
+			}
+			_, err = runtime.call(adder, weakMap, []Value{key, value}, Span{})
+			return err
+		})
+		if err != nil {
+			return Undefined(), err
+		}
+		if !found {
+			return Undefined(), typeError("WeakMap iterable is not iterable")
 		}
 		return weakMap, nil
 	}
@@ -45,36 +65,10 @@ func (interpreter *Runtime) installWeakMapBuiltin() {
 func (interpreter *Runtime) newWeakMap() Value {
 	return Value{k: KindObject, o: &Object{
 		identity: newIdentity(), properties: make(map[PropertyKey]PropertyDescriptor),
-		prototype: interpreter.intrinsics.weakMapPrototype,
-		weakmap:   &weakMapData{entries: make(map[weakMapKey]Value)},
+		prototype:  interpreter.intrinsics.weakMapPrototype,
+		weakmap:    &weakMapData{entries: make(map[weakMapKey]Value)},
+		extensible: true,
 	}}
-}
-
-func iterableEntries(runtime *Runtime, iterable Value) ([][2]Value, error) {
-	values, found, err := iteratorToList(runtime, iterable)
-	if err != nil {
-		return nil, err
-	}
-	if !found {
-		return nil, typeError("WeakMap iterable is not iterable")
-	}
-	entries := make([][2]Value, 0, len(values))
-	for _, entryValue := range values {
-		entry := objectRecord(entryValue)
-		if entry == nil || !entry.array {
-			return nil, typeError("WeakMap iterator value is not an object")
-		}
-		key, _, err := getProperty(runtime, entryValue, StringKey("0"))
-		if err != nil {
-			return nil, err
-		}
-		value, _, err := getProperty(runtime, entryValue, StringKey("1"))
-		if err != nil {
-			return nil, err
-		}
-		entries = append(entries, [2]Value{key, value})
-	}
-	return entries, nil
 }
 
 func (data *weakMapData) cleanup() {

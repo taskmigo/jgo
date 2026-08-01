@@ -264,7 +264,16 @@ func (l *lexer) scanString(start Position) (Token, error) {
 			units = append(units, codeUnit)
 			continue
 		default:
-			units = append(units, uint16(escape))
+			character, width := utf8.DecodeRuneInString(l.source[l.off:])
+			if character == utf8.RuneError && width == 1 {
+				token := l.token(TokString, string(utf16.Decode(units)), start)
+				return token, &SyntaxError{token.Span, token, "invalid UTF-8 in string literal"}
+			}
+			units = append(units, utf16.Encode([]rune{character})...)
+			for range width {
+				l.advance()
+			}
+			continue
 		}
 		l.advance()
 	}
@@ -330,7 +339,8 @@ var multiCharacterTokens = []struct {
 	literal   string
 	tokenType TokenType
 }{
-	{"===", TokStrictEQ}, {"!==", TokStrictNE}, {"==", TokEQ}, {"!=", TokNE},
+	{"===", TokStrictEQ}, {"!==", TokStrictNE}, {"++", TokPlusPlus}, {"--", TokMinusMinus},
+	{"==", TokEQ}, {"!=", TokNE},
 	{"<=", TokLE}, {">=", TokGE}, {"&&", TokAnd}, {"||", TokOr},
 }
 

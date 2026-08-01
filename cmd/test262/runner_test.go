@@ -465,6 +465,25 @@ func TestInferredFeature(t *testing.T) {
 	}
 }
 
+func TestUnsupportedTestReason(t *testing.T) {
+	tests := []struct {
+		name     string
+		metadata metadata
+		want     string
+	}{
+		{name: "test/language/module-code/source-text.js", metadata: metadata{flags: []string{"module"}}, want: "unsupported feature: modules"},
+		{name: "test/language/statements/x.js", metadata: metadata{flags: []string{"onlyStrict"}}, want: "unsupported feature: strict mode"},
+		{name: "test/annexB/language/x.js", want: "unsupported feature: Annex B"},
+		{name: "test/language/expressions/x.js", metadata: metadata{features: []string{"BigInt"}}, want: "unsupported feature: BigInt"},
+		{name: "test/language/expressions/x.js"},
+	}
+	for _, test := range tests {
+		if got := unsupportedTestReason(test.name, test.metadata); got != test.want {
+			t.Errorf("unsupportedTestReason(%q) = %q, want %q", test.name, got, test.want)
+		}
+	}
+}
+
 func TestObjectDescriptorsRunWithoutHarnessShim(t *testing.T) {
 	root := t.TempDir()
 	testDir := filepath.Join(root, "test", "built-ins", "Object")

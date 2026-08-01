@@ -51,8 +51,14 @@ func (runtime *Runtime) instantiateDeclarations(statements []stmt, environment *
 				return err
 			}
 		case *functionStmt:
-			if !environment.hasOwnBinding(declaration.name) {
-				environment.createMutableBinding(declaration.name, runtime.makeFunction(declaration.fn, environment))
+			functionValue := runtime.makeFunction(declaration.fn, environment)
+			if environment.hasOwnBinding(declaration.name) {
+				binding := environment.bindings[declaration.name]
+				binding.value = functionValue
+				binding.initialized = true
+				environment.bindings[declaration.name] = binding
+			} else {
+				environment.createMutableBinding(declaration.name, functionValue)
 			}
 		}
 	}
@@ -232,6 +238,8 @@ func (runtime *Runtime) eval(expression expr, environment *environment) (Value, 
 		return runtime.makeFunction(node, environment), nil
 	case *unaryExpr:
 		return runtime.evalUnary(node, environment)
+	case *updateExpr:
+		return runtime.evalUpdate(node, environment)
 	case *binaryExpr:
 		return runtime.evalBinary(node, environment)
 	case *sequenceExpr:
@@ -259,6 +267,28 @@ func (runtime *Runtime) eval(expression expr, environment *environment) (Value, 
 	default:
 		return Undefined(), typeError("unsupported expression")
 	}
+}
+
+func (runtime *Runtime) evalUpdate(expression *updateExpr, environment *environment) (Value, error) {
+	reference, err := runtime.evalReference(expression.target, environment)
+	if err != nil {
+		return Undefined(), err
+	}
+	oldValue, err := reference.getValue()
+	if err != nil {
+		return Undefined(), err
+	}
+	number, err := runtime.toNumber(oldValue)
+	if err != nil {
+		return Undefined(), err
+	}
+	if expression.op == TokPlusPlus {
+		number++
+	} else {
+		number--
+	}
+	newValue := Number(number)
+	return newValue, reference.putValue(newValue)
 }
 
 func (runtime *Runtime) evalReference(expression expr, environment *environment) (reference, error) {
@@ -345,6 +375,9 @@ func (runtime *Runtime) evalBinary(expression *binaryExpr, environment *environm
 	right, err := runtime.eval(expression.right, environment)
 	if err != nil {
 		return Undefined(), err
+	}
+	if expression.op == TokAnd || expression.op == TokOr {
+		return right, nil
 	}
 	return runtime.applyBinaryOperator(expression.op, left, right)
 }

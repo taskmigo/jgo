@@ -22,16 +22,40 @@ func (runtime *Runtime) installArrayBuiltin() {
 	})
 	constructor.f.construct = constructor.f.call
 	constructor.f.object.prototype = runtime.intrinsics.functionPrototype
-	defineBuiltin(constructor.f.object, "of", defineFunctionMetadata(nativeValue(func(runtime *Runtime, _ Value, arguments []Value) (Value, error) {
-		return runtime.newArray(arguments...), nil
-	}), "of", 0))
+	linkConstructor(constructor, runtime.intrinsics.arrayPrototype)
+	defineBuiltin(constructor.f.object, "of", defineFunctionMetadata(nativeValue(arrayOf), "of", 0))
 	defineBuiltin(constructor.f.object, "from", defineFunctionMetadata(nativeValue(arrayFrom), "from", 1))
 	defineBuiltin(runtime.intrinsics.arrayPrototype, "at", defineFunctionMetadata(nativeValue(arrayAt), "at", 1))
 	defineBuiltin(runtime.intrinsics.arrayPrototype, "includes", defineFunctionMetadata(nativeValue(arrayIncludes), "includes", 1))
+	defineBuiltin(runtime.intrinsics.arrayPrototype, "join", defineFunctionMetadata(nativeValue(arrayJoin), "join", 1))
+	defineBuiltin(runtime.intrinsics.arrayPrototype, "push", defineFunctionMetadata(nativeValue(arrayPush), "push", 1))
 	runtime.intrinsics.arrayPrototype.properties[PropertyKey{symbol: runtime.iteratorSymbol}] = PropertyDescriptor{
 		Value: defineFunctionMetadata(nativeValue(arrayValuesIterator), "values", 0), Writable: true, Configurable: true,
 	}
 	runtime.global.createMutableBinding("Array", defineFunctionMetadata(constructor, "Array", 1))
+}
+
+func arrayOf(runtime *Runtime, constructor Value, arguments []Value) (Value, error) {
+	result := runtime.newArray()
+	if constructor.IsConstructor() {
+		constructed, err := runtime.construct(constructor, []Value{Number(float64(len(arguments)))}, Span{})
+		if err != nil {
+			return Undefined(), err
+		}
+		result = constructed
+	}
+	if objectRecord(result) == nil {
+		return Undefined(), typeError("Array.of constructor did not return an object")
+	}
+	for index, value := range arguments {
+		if err := defineProperty(result, StringKey(fmtInt(index)), defaultProperty(value)); err != nil {
+			return Undefined(), err
+		}
+	}
+	if err := setProperty(result, StringKey("length"), Number(float64(len(arguments)))); err != nil {
+		return Undefined(), err
+	}
+	return result, nil
 }
 
 func arrayFrom(runtime *Runtime, _ Value, arguments []Value) (Value, error) {
@@ -61,11 +85,10 @@ func arrayFrom(runtime *Runtime, _ Value, arguments []Value) (Value, error) {
 }
 
 func arrayAt(runtime *Runtime, receiver Value, arguments []Value) (Value, error) {
-	object := objectRecord(receiver)
-	if object == nil || !object.array {
-		return Undefined(), typeError("Array.prototype.at called on incompatible receiver")
+	length, err := lengthOfArrayLike(runtime, receiver)
+	if err != nil {
+		return Undefined(), err
 	}
-	length := arrayLength(object)
 	index, err := runtime.toIntegerOrInfinity(argument(arguments, 0))
 	if err != nil {
 		return Undefined(), err
@@ -76,19 +99,15 @@ func arrayAt(runtime *Runtime, receiver Value, arguments []Value) (Value, error)
 	if index < 0 || index >= float64(length) || math.IsInf(index, 0) {
 		return Undefined(), nil
 	}
-	descriptor, found := object.properties[StringKey(fmtInt(int(index)))]
-	if !found {
-		return Undefined(), nil
-	}
-	return descriptor.Value, nil
+	value, _, err := getProperty(runtime, receiver, StringKey(fmtInt(int(index))))
+	return value, err
 }
 
 func arrayIncludes(runtime *Runtime, receiver Value, arguments []Value) (Value, error) {
-	object := objectRecord(receiver)
-	if object == nil || !object.array {
-		return Undefined(), typeError("Array.prototype.includes called on incompatible receiver")
+	length, err := lengthOfArrayLike(runtime, receiver)
+	if err != nil {
+		return Undefined(), err
 	}
-	length := arrayLength(object)
 	if length == 0 {
 		return Boolean(false), nil
 	}
@@ -108,15 +127,81 @@ func arrayIncludes(runtime *Runtime, receiver Value, arguments []Value) (Value, 
 	}
 	search := argument(arguments, 0)
 	for ; index < length; index++ {
-		value := Undefined()
-		if descriptor, found := object.properties[StringKey(fmtInt(index))]; found {
-			value = descriptor.Value
+		value, _, err := getProperty(runtime, receiver, StringKey(fmtInt(index)))
+		if err != nil {
+			return Undefined(), err
 		}
 		if sameValueZero(value, search) {
 			return Boolean(true), nil
 		}
 	}
 	return Boolean(false), nil
+}
+
+func arrayJoin(runtime *Runtime, receiver Value, arguments []Value) (Value, error) {
+	length, err := lengthOfArrayLike(runtime, receiver)
+	if err != nil {
+		return Undefined(), err
+	}
+	separator := jsString{','}
+	if value := argument(arguments, 0); !value.IsUndefined() {
+		separator, err = runtime.toString(value)
+		if err != nil {
+			return Undefined(), err
+		}
+	}
+
+	var result jsString
+	for index := 0; index < length; index++ {
+		if index > 0 {
+			result = append(result, separator...)
+		}
+		element, _, err := getProperty(runtime, receiver, StringKey(fmtInt(index)))
+		if err != nil {
+			return Undefined(), err
+		}
+		if element.k == KindUndefined || element.k == KindNull {
+			continue
+		}
+		text, err := runtime.toString(element)
+		if err != nil {
+			return Undefined(), err
+		}
+		result = append(result, text...)
+	}
+	return StringUTF16(result), nil
+}
+
+func arrayPush(runtime *Runtime, receiver Value, arguments []Value) (Value, error) {
+	length, err := lengthOfArrayLike(runtime, receiver)
+	if err != nil {
+		return Undefined(), err
+	}
+	const maxSafeInteger = 1<<53 - 1
+	if length > maxSafeInteger-len(arguments) {
+		return Undefined(), typeError("Array.prototype.push exceeds the maximum safe integer")
+	}
+	for offset, value := range arguments {
+		if err := setProperty(receiver, StringKey(fmtInt(length+offset)), value); err != nil {
+			return Undefined(), err
+		}
+	}
+	newLength := length + len(arguments)
+	if err := setProperty(receiver, StringKey("length"), Number(float64(newLength))); err != nil {
+		return Undefined(), err
+	}
+	return Number(float64(newLength)), nil
+}
+
+func lengthOfArrayLike(runtime *Runtime, value Value) (int, error) {
+	if value.k == KindNull || value.k == KindUndefined {
+		return 0, typeError("cannot convert null or undefined to object")
+	}
+	length, _, err := getProperty(runtime, value, StringKey("length"))
+	if err != nil {
+		return 0, err
+	}
+	return runtime.toLength(length)
 }
 
 func (runtime *Runtime) installStringBuiltin() {
@@ -135,6 +220,21 @@ func (runtime *Runtime) installStringBuiltin() {
 		return StringUTF16(converted), nil
 	})
 	constructor.f.object.prototype = runtime.intrinsics.functionPrototype
+	constructor.f.construct = func(runtime *Runtime, _ Value, arguments []Value) (Value, error) {
+		if argument(arguments, 0).k == KindSymbol {
+			return Undefined(), typeError("cannot convert a Symbol value to a string")
+		}
+		primitive, err := constructor.f.call(runtime, Undefined(), arguments)
+		if err != nil {
+			return Undefined(), err
+		}
+		object := newObject(runtime.intrinsics.stringPrototype)
+		object.boxed = primitive
+		return Value{k: KindObject, o: object}, nil
+	}
+	linkConstructor(constructor, runtime.intrinsics.stringPrototype)
+	defineBuiltin(runtime.intrinsics.stringPrototype, "valueOf", defineFunctionMetadata(nativeValue(stringValueOf), "valueOf", 0))
+	defineBuiltin(runtime.intrinsics.stringPrototype, "toString", defineFunctionMetadata(nativeValue(stringValueOf), "toString", 0))
 	for name, method := range map[string]NativeFunction{
 		"at": stringAt, "includes": stringIncludes, "startsWith": stringStartsWith,
 		"endsWith": stringEndsWith, "repeat": stringRepeat, "padStart": stringPadStart,
@@ -151,6 +251,16 @@ func (runtime *Runtime) installStringBuiltin() {
 		Value: defineFunctionMetadata(nativeValue(stringValuesIterator), "[Symbol.iterator]", 0), Writable: true, Configurable: true,
 	}
 	runtime.global.createMutableBinding("String", defineFunctionMetadata(constructor, "String", 1))
+}
+
+func stringValueOf(_ *Runtime, receiver Value, _ []Value) (Value, error) {
+	if receiver.k == KindString {
+		return receiver, nil
+	}
+	if receiver.k == KindObject && receiver.o.boxed.k == KindString {
+		return receiver.o.boxed, nil
+	}
+	return Undefined(), typeError("String method called on incompatible receiver")
 }
 
 func stringReceiver(runtime *Runtime, receiver Value) (jsString, error) {

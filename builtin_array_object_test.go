@@ -7,7 +7,7 @@ import (
 )
 
 func TestArrayStringAndObjectBuiltins(t *testing.T) {
-	result, err := New(Config{}).EvaluateString(context.Background(), `Array.of(1,2,3).at(-1) === 3 && Array.from("ab").includes("b") && "  gots  ".trimStart().trimEnd().padStart(6,"-").replaceAll("-","+") === "++gots" && Object.hasOwn({x:1},"x") && globalThis.globalThis === globalThis`)
+	result, err := New(Config{}).EvaluateString(context.Background(), `let arrayLike={length:3}; arrayLike[0]="a"; arrayLike[2]="c"; Array.of(1,2,3).at(-1) === 3 && Array.from("ab").includes("b") && [1,null,undefined,4].join("-") === "1---4" && Array.prototype.join.call(arrayLike) === "a,,c" && "  gots  ".trimStart().trimEnd().padStart(6,"-").replaceAll("-","+") === "++gots" && Object.hasOwn({x:1},"x") && globalThis.globalThis === globalThis`)
 	if err != nil || !result.Value.ToBoolean() {
 		t.Fatalf("value=%v error=%v", result.Value, err)
 	}
