@@ -1,0 +1,33 @@
+{
+  "commit": "b363f29d3c43c626dc852744ad64a0b48a003693",
+  "feature": "WeakMap",
+  "acceptance": "All selected tests must pass; unsupported and skip are not accepted.",
+  "tests": [
+    "test/built-ins/Map/prototype/clear/context-is-weakmap-object-throws.js",
+    "test/built-ins/Map/prototype/delete/context-is-weakmap-object-throws.js",
+    "test/built-ins/Map/prototype/entries/does-not-have-mapdata-internal-slot-weakmap.js",
+    "test/built-ins/Map/prototype/forEach/does-not-have-mapdata-internal-slot-weakmap.js",
+    "test/built-ins/Map/prototype/get/does-not-have-mapdata-internal-slot-weakmap.js",
+    "test/built-ins/Map/prototype/getOrInsert/does-not-have-mapdata-internal-slot-weakmap.js",
+    "test/built-ins/Map/prototype/has/does-not-have-mapdata-internal-slot-weakmap.js",
+    "test/built-ins/Map/prototype/keys/does-not-have-mapdata-internal-slot-weakmap.js",
+    "test/built-ins/Map/prototype/set/does-not-have-mapdata-internal-slot-weakmap.js",
+    "test/built-ins/Map/prototype/values/does-not-have-mapdata-internal-slot-weakmap.js",
+    "test/built-ins/WeakMap/iterator-items-keys-cannot-be-held-weakly.js",
+    "test/built-ins/WeakMap/prototype/delete/delete-entry-with-object-key-initial-iterable.js",
+    "test/built-ins/WeakMap/prototype/delete/delete-entry-with-object-key.js",
+    "test/built-ins/WeakMap/prototype/delete/returns-false-when-object-key-not-present.js",
+    "test/built-ins/WeakMap/prototype/get/returns-undefined-with-object-key.js",
+    "test/built-ins/WeakMap/prototype/get/returns-value-with-object-key.js",
+    "test/built-ins/WeakMap/prototype/getOrInsert/throw-if-key-cannot-be-held-weakly.js",
+    "test/built-ins/WeakMap/prototype/getOrInsertComputed/not-a-function-callbackfn-throws.js",
+    "test/built-ins/WeakMap/prototype/has/returns-false-when-object-key-not-present.js",
+    "test/built-ins/WeakMap/prototype/has/returns-true-when-object-key-present.js",
+    "test/built-ins/WeakMap/prototype/set/adds-object-element.js",
+    "test/built-ins/WeakMap/prototype/set/throw-if-key-cannot-be-held-weakly.js"
+  ],
+  "excludedFeatureTests": {
+    "count": 57,
+    "reason": "Require out-of-MVP dependencies such as Symbol, Map, classes, realms, reflection/prototypes, or newer WeakMap methods; retained as unsupported in the full report."
+  }
+}
