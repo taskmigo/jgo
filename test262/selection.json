@@ -1,0 +1,7 @@
+{
+  "commit": "b363f29d3c43c626dc852744ad64a0b48a003693",
+  "ecmaVersion": "ECMAScript 2025 (ES16), plus later features present in the pinned Test262 commit",
+  "features": ["basic-expressions"],
+  "tests": ["smoke/positive.js", "smoke/negative.js", "smoke/include.js"],
+  "expectedUnsupported": ["modules", "promises", "classes"]
+}
