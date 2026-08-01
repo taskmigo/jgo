@@ -106,7 +106,7 @@ func main() {
 		add(&rep.Counts, res.Status)
 		features := res.Features
 		if len(features) == 0 {
-			features = []string{"(unclassified)"}
+			features = []string{inferredFeature(res.Name)}
 		}
 		for _, f := range features {
 			c := rep.ByFeature[f]
@@ -145,6 +145,22 @@ func main() {
 	if (*baseline == "" && rep.Counts.Fail+rep.Counts.Timeout > 0) || len(rep.Regressions) > 0 {
 		os.Exit(1)
 	}
+}
+
+// inferredFeature gives tests without a Test262 `features` tag a stable,
+// path-derived bucket instead of hiding them in a large "unclassified" group.
+func inferredFeature(name string) string {
+	parts := strings.Split(filepath.ToSlash(name), "/")
+	if len(parts) >= 3 && parts[0] == "test" && parts[1] == "built-ins" {
+		return "path:built-ins/" + parts[2]
+	}
+	if len(parts) >= 3 && parts[0] == "test" && parts[1] == "language" {
+		return "path:language/" + parts[2]
+	}
+	if len(parts) >= 3 && parts[0] == "test" {
+		return "path:" + parts[1] + "/" + parts[2]
+	}
+	return "path:other"
 }
 
 func compareBaseline(path string, actual report) []string {

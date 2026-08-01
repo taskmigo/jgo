@@ -39,6 +39,10 @@ Every report identifies the ECMA target and pinned Test262 commit, and shows
 three distinct percentages: tests covered (not unsupported), passes over the
 full denominator, and passes among covered tests. This avoids presenting the
 covered-test pass rate as overall ECMAScript conformance.
+Tests whose Test262 metadata has no `features` entry are grouped under stable
+`path:*` categories derived from their suite path (for example,
+`path:built-ins/WeakMap` or `path:language/expressions`), so no results disappear
+into an ambiguous `(unclassified)` bucket.
 
 To measure the entire pinned Test262 checkout, use `-all`; the command returns a
 non-zero status when it finds failures:

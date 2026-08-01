@@ -65,3 +65,17 @@ func TestDiscover(t *testing.T) {
 		t.Fatal(names)
 	}
 }
+
+func TestInferredFeature(t *testing.T) {
+	tests := map[string]string{
+		"test/built-ins/WeakMap/prototype/get.js": "path:built-ins/WeakMap",
+		"test/language/expressions/addition/x.js": "path:language/expressions",
+		"test/annexB/built-ins/x.js":              "path:annexB/built-ins",
+		"smoke/x.js":                              "path:other",
+	}
+	for name, want := range tests {
+		if got := inferredFeature(name); got != want {
+			t.Errorf("inferredFeature(%q)=%q, want %q", name, got, want)
+		}
+	}
+}
