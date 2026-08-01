@@ -36,12 +36,17 @@ To measure the entire pinned Test262 checkout, use `-all`; the command returns a
 non-zero status when it finds failures:
 
 ```sh
-go run ./cmd/test262 -all -test262 /path/to/test262
+go run ./cmd/test262 -all -test262 /path/to/test262 \
+  -baseline test262/full-baseline.json
 ```
 
 The latest checked-in full-run feature summary is in
 `test262/reports/full-summary.md`; detailed JSON and JUnit reports are generated
 as local or CI artifacts because they contain tens of thousands of test cases.
+The Test262 workflow always executes this complete pinned suite. Its baseline
+allows known failures while failing CI if pass coverage decreases, failure or
+unsupported counts increase, a feature regresses, or the test denominator/pin
+changes unexpectedly.
 
 ## Roadmap
 

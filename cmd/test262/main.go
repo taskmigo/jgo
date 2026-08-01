@@ -35,11 +35,12 @@ type result struct {
 	DurationMS int64    `json:"durationMs"`
 }
 type report struct {
-	Commit    string            `json:"commit"`
-	Mode      string            `json:"mode"`
-	Counts    counts            `json:"counts"`
-	ByFeature map[string]counts `json:"byFeature"`
-	Results   []result          `json:"results"`
+	Commit      string            `json:"commit"`
+	Mode        string            `json:"mode"`
+	Counts      counts            `json:"counts"`
+	ByFeature   map[string]counts `json:"byFeature"`
+	Results     []result          `json:"results"`
+	Regressions []string          `json:"regressions,omitempty"`
 }
 type suite struct {
 	XMLName                  xml.Name   `xml:"testsuite"`
@@ -69,6 +70,7 @@ func main() {
 	summary := flag.String("summary", "", "summary output (defaults to GITHUB_STEP_SUMMARY)")
 	steps := flag.Uint64("steps", 100000, "steps per test")
 	timeout := flag.Duration("timeout", 2*time.Second, "timeout per test")
+	baseline := flag.String("baseline", "", "full-run baseline used to reject coverage regressions")
 	flag.Parse()
 	b, err := os.ReadFile(*selection)
 	fatal(err)
@@ -113,6 +115,9 @@ func main() {
 	js.Tests = rep.Counts.Total
 	js.Failures = rep.Counts.Fail + rep.Counts.Timeout
 	js.Skipped = rep.Counts.Skip + rep.Counts.Unsupported
+	if *baseline != "" {
+		rep.Regressions = compareBaseline(*baseline, rep)
+	}
 	writeJSON(*jsonOut, rep)
 	xb, err := xml.MarshalIndent(js, "", "  ")
 	fatal(err)
@@ -127,9 +132,50 @@ func main() {
 	} else {
 		fmt.Print(out)
 	}
-	if rep.Counts.Fail+rep.Counts.Timeout > 0 {
+	if (*baseline == "" && rep.Counts.Fail+rep.Counts.Timeout > 0) || len(rep.Regressions) > 0 {
 		os.Exit(1)
 	}
+}
+
+func compareBaseline(path string, actual report) []string {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return []string{"baseline: " + err.Error()}
+	}
+	var expected report
+	if err := json.Unmarshal(b, &expected); err != nil {
+		return []string{"baseline: " + err.Error()}
+	}
+	var problems []string
+	if expected.Commit != actual.Commit {
+		problems = append(problems, fmt.Sprintf("commit changed: expected %s, got %s", expected.Commit, actual.Commit))
+	}
+	if expected.Counts.Total != actual.Counts.Total {
+		problems = append(problems, fmt.Sprintf("total changed: expected %d, got %d", expected.Counts.Total, actual.Counts.Total))
+	}
+	if actual.Counts.Pass < expected.Counts.Pass {
+		problems = append(problems, fmt.Sprintf("pass count decreased: expected at least %d, got %d", expected.Counts.Pass, actual.Counts.Pass))
+	}
+	if actual.Counts.Fail > expected.Counts.Fail {
+		problems = append(problems, fmt.Sprintf("fail count increased: expected at most %d, got %d", expected.Counts.Fail, actual.Counts.Fail))
+	}
+	if actual.Counts.Unsupported > expected.Counts.Unsupported {
+		problems = append(problems, fmt.Sprintf("unsupported count increased: expected at most %d, got %d", expected.Counts.Unsupported, actual.Counts.Unsupported))
+	}
+	if actual.Counts.Timeout > expected.Counts.Timeout {
+		problems = append(problems, fmt.Sprintf("timeout count increased: expected at most %d, got %d", expected.Counts.Timeout, actual.Counts.Timeout))
+	}
+	for feature, want := range expected.ByFeature {
+		got, ok := actual.ByFeature[feature]
+		if !ok {
+			problems = append(problems, "feature disappeared: "+feature)
+			continue
+		}
+		if got.Total != want.Total || got.Pass < want.Pass || got.Fail > want.Fail || got.Unsupported > want.Unsupported || got.Timeout > want.Timeout {
+			problems = append(problems, fmt.Sprintf("feature regressed: %s (want pass>=%d fail<=%d unsupported<=%d timeout<=%d total=%d; got %+v)", feature, want.Pass, want.Fail, want.Unsupported, want.Timeout, want.Total, got))
+		}
+	}
+	return problems
 }
 
 func discover(root string) ([]string, error) {

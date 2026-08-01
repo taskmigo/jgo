@@ -19,8 +19,13 @@ jobs:
           path: test262-upstream
       - name: Verify pinned Test262 checkout
         run: test "$(git -C test262-upstream rev-parse HEAD)" = "$(jq -r .commit test262/selection.json)"
-      - run: go run ./cmd/test262 -test262 test262 -json test262-report.json -junit test262-report.xml
+      - name: Run complete pinned Test262 suite
+        run: >-
+          go run ./cmd/test262 -all -test262 test262-upstream
+          -baseline test262/full-baseline.json -timeout 100ms
+          -json test262-report.json -junit test262-report.xml
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: test262-report
           path: test262-report.*
