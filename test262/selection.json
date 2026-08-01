@@ -1,8 +1,10 @@
 {
   "commit": "b363f29d3c43c626dc852744ad64a0b48a003693",
-  "ecmaVersion": "ECMAScript 2025 (ES16), plus later features present in the pinned Test262 commit",
+  "ecma262Commit": "994b48ed0c0940edaa0e4ce4d9e358fa3ba91edb",
+  "ecmaVersion": "ECMAScript 2027 draft snapshot 2026-08-01",
   "reportDate": "2026-08-01",
+  "capabilityManifest": "capabilities.json",
+  "capabilityVersion": "phase-3-synchronous-classes-v1",
   "features": ["basic-expressions"],
-  "tests": ["smoke/positive.js", "smoke/negative.js", "smoke/include.js"],
-  "expectedUnsupported": ["modules", "promises", "classes"]
+  "tests": ["smoke/positive.js", "smoke/negative.js", "smoke/include.js"]
 }

@@ -8,7 +8,7 @@ blocks, conditionals, loops, functions/closures/recursion, property access,
 basic operators, cooperative context/step/call-depth limits, typed and reflected
 Go functions, and GC-aware `WeakMap` keys built with Go's `weak` package.
 WeakMap also accepts non-registered Symbols as weak keys and implements the
-proposal methods `getOrInsert` and `getOrInsertComputed`; registered
+pinned-spec methods `getOrInsert` and `getOrInsertComputed`; registered
 `Symbol.for` values are rejected as weak keys.
 Lexical declarations support `let`/`const` declaration lists, reject duplicate
 names within a lexical declaration, and require `const` initializers. Classic
@@ -16,15 +16,23 @@ names within a lexical declaration, and require `const` initializers. Classic
 comma expressions evaluate from left to right. Full
 Test262 `let` coverage additionally depends on out-of-MVP modules, generators,
 destructuring, `for`/`for-in`/`for-of`, `switch`, `try`, and `eval` semantics.
-Initial standard-library coverage includes `Array.from`, `Array.of`, array/string
-`at` and `includes`, common string search/padding/trimming/replacement methods,
-`Object.hasOwn`, and `globalThis`. The full report remains authoritative for
-their incomplete edge-case and dependency coverage.
+Initial standard-library coverage includes `Array.from`, `Array.of`, array
+`at`, `includes`, `join`, and `push`, common string
+search/padding/trimming/replacement methods, `Object.hasOwn`, and `globalThis`.
+Script and function strict mode, direct/indirect eval, sloppy `with`, and
+mapped/unmapped arguments objects are supported. Strict Test262 variants whose
+syntax or runtime dependencies are outside the declared subset remain
+explicitly unsupported. Synchronous classes include inheritance, `super`,
+`new.target`, methods/accessors, public and private fields, private brands, and
+static initialization blocks. Generator and async class elements remain
+unsupported with their owning execution features. Annex B and BigInt remain unsupported, and the full
+report is authoritative for incomplete edge-case and dependency coverage.
 
 ```go
-r := gots.New(gots.WithMaxSteps(10_000))
+r := gots.New(gots.Config{MaxSteps: 10_000})
 p, _ := r.Compile(`function twice(x) { return x * 2; } twice(21)`)
-value, err := r.Run(p)
+result, err := r.Evaluate(context.Background(), p)
+fmt.Println(result.Value.Inspect(), result.Stats.Steps)
 ```
 
 Use `go run ./cmd/gots -e '1 + 2'`, pass a file, or pipe source on stdin.
@@ -33,19 +41,26 @@ interpreter operations. Exposing privileged host functions is not a sandbox.
 
 ## Conformance
 
-The deliberately small Test262 selection is pinned in `test262/selection.json`
-at commit `b363f29d3c43c626dc852744ad64a0b48a003693`. Reproduce the bundled smoke
+The normative language snapshot is ECMA-262 commit
+`994b48ed0c0940edaa0e4ce4d9e358fa3ba91edb` (2026-08-01). The deliberately
+small Test262 selection is pinned in `test262/selection.json` at commit
+`b363f29d3c43c626dc852744ad64a0b48a003693`. Reproduce the bundled smoke
 report with:
 
 ```sh
 go run ./cmd/test262 -test262 test262
 ```
 
-Reports contain the selection denominator and separate pass, fail, skip, and
-unsupported counts. No aggregate result should be interpreted as full
+Unflagged Test262 Scripts expand into stable `#sloppy` and `#strict` case IDs;
+`onlyStrict`, `noStrict`, `module`, and `raw` metadata select their normative
+variant. Reports contain both the source-file and expanded-case denominators
+and separate pass, fail, skip, unsupported, and timeout counts. Optional timing
+diagnostics use `-timings`; canonical JSON, Markdown, and JUnit output contain
+no durations. No aggregate result should be interpreted as full
 ECMAScript compatibility. Go 1.25 or later is required.
 
-Every report identifies the ECMA target and pinned Test262 commit, and shows
+Every report identifies the ECMAScript 2027 draft snapshot dated 2026-08-01
+and the pinned Test262 commit, and shows
 three distinct Test262 percentages: execution coverage (not unsupported), the
 overall pass rate over the full denominator, and the pass rate among executed
 tests. These are Test262 runner metrics, not ECMAScript specification coverage.
@@ -66,9 +81,11 @@ The official checked-in full-run coverage report is [`COVERAGE.md`](/COVERAGE.md
 detailed JSON and JUnit reports are generated
 as local or CI artifacts because they contain tens of thousands of test cases.
 The Test262 workflow always executes this complete pinned suite. Its baseline
-allows known failures while failing CI if pass coverage decreases, failure or
-unsupported counts increase, a feature regresses, or the test denominator/pin
-changes unexpectedly.
+uses schema v2 stable case IDs. CI rejects any previous pass that becomes a
+failure, timeout, or unsupported result, denominator decreases, pin changes,
+and unsupported-classification changes that are not accompanied by an explicit
+capability-manifest version change. Aggregate feature counts are diagnostic
+because Test262 feature tags overlap.
 
 To update the canonical coverage report and baseline locally, run:
 
@@ -90,6 +107,6 @@ PR's committed files, so manually edited or stale reports are not accepted.
 
 ## Roadmap
 
-Grow conformance feature-by-feature, add complete Test262 harness include and
-strict-mode handling, and keep unsupported syntax explicit rather than silently
-approximating it.
+Grow conformance feature-by-feature and keep unsupported syntax explicit rather
+than silently approximating it. TC39 proposals remain out of scope until their
+algorithms are incorporated into the pinned ECMA-262 revision.

@@ -4,37 +4,39 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
-	"reflect"
-	"runtime"
 	"time"
 )
 
 var (
-	ErrNilProgram = errors.New("gots: nil program")
-	ErrRuntime    = errors.New("gots: runtime error")
-	ErrStepLimit  = errors.New("gots: step limit exceeded")
-	ErrCallDepth  = errors.New("gots: call depth exceeded")
-	ErrCancelled  = errors.New("gots: execution cancelled")
+	ErrNilProgram  = errors.New("gots: nil program")
+	ErrStepLimit   = errors.New("gots: step limit exceeded")
+	ErrCallDepth   = errors.New("gots: call depth exceeded")
+	ErrCancelled   = errors.New("gots: execution cancelled")
+	ErrRuntimeBusy = errors.New("gots: runtime is already executing")
 )
 
-type RuntimeError struct {
+// Exception is an uncaught ECMAScript exception crossing the host boundary.
+type Exception struct {
+	Name    string
 	Message string
+	Value   Value
 	Span    Span
-	Cause   error
 }
 
-func (e *RuntimeError) Error() string {
-	if e.Span.Start.Line > 0 {
-		return fmt.Sprintf("runtime error at %d:%d: %s", e.Span.Start.Line, e.Span.Start.Column, e.Message)
+func (exception *Exception) Error() string {
+	message := exception.Name
+	if exception.Message != "" {
+		message += ": " + exception.Message
 	}
-	return "runtime error: " + e.Message
+	if exception.Span.Start.Line > 0 {
+		return fmt.Sprintf("%s at %d:%d", message, exception.Span.Start.Line, exception.Span.Start.Column)
+	}
+	return message
 }
-func (e *RuntimeError) Unwrap() error {
-	if e.Cause != nil {
-		return e.Cause
-	}
-	return ErrRuntime
+
+func typeError(message string) error { return &Exception{Name: "TypeError", Message: message} }
+func referenceError(message string) error {
+	return &Exception{Name: "ReferenceError", Message: message}
 }
 
 type Stats struct {
@@ -42,667 +44,153 @@ type Stats struct {
 	MaxCallDepth int
 	Duration     time.Duration
 }
-type Option func(*Runtime)
 
-func WithMaxSteps(n uint64) Option  { return func(r *Runtime) { r.maxSteps = n } }
-func WithMaxCallDepth(n int) Option { return func(r *Runtime) { r.maxDepth = n } }
+type Result struct {
+	Value Value
+	Stats Stats
+}
+
+type Config struct {
+	MaxSteps     uint64
+	MaxCallDepth int
+}
 
 type Runtime struct {
-	global   *environment
-	maxSteps uint64
-	maxDepth int
-	exec     *execution
-	last     Stats
+	global            *environment
+	config            Config
+	exec              *execution
+	symbols           map[string]*symbolValue
+	iteratorSymbol    *symbolValue
+	hasInstanceSymbol *symbolValue
+	intrinsics        intrinsics
 }
+
 type Program struct {
 	source string
 	body   []stmt
+	strict bool
 }
 
-func (p *Program) Source() string {
-	if p == nil {
+func (program *Program) Source() string {
+	if program == nil {
 		return ""
 	}
-	return p.source
+	return program.source
 }
 
 type execution struct {
-	ctx            context.Context
-	steps          uint64
-	depth, maxSeen int
-	started        time.Time
+	ctx                   context.Context
+	steps                 uint64
+	depth, maxSeen        int
+	started               time.Time
+	strict                bool
+	activeFunction        Value
+	newTarget             Value
+	classFieldInitializer bool
 }
 
-func New(options ...Option) *Runtime {
-	r := &Runtime{global: newEnvironment(nil), maxDepth: 256}
-	for _, o := range options {
-		o(r)
+func New(config Config) *Runtime {
+	if config.MaxCallDepth == 0 {
+		config.MaxCallDepth = 256
 	}
-	weakMapConstructor := nativeValue(func(_ *Runtime, _ Value, args []Value) (Value, error) {
-		m := newWeakMapValue()
-		if len(args) > 0 && !args[0].IsUndefined() && args[0].Kind() != KindNull {
-			it := args[0]
-			if it.k != KindObject || !it.o.array {
-				return Undefined(), &RuntimeError{Message: "WeakMap iterable must be an array"}
-			}
-			l := int(number(it.o.props["length"]))
-			for i := 0; i < l; i++ {
-				entry, _ := property(it, fmt.Sprint(i))
-				if entry.k != KindObject || !entry.o.array || int(number(entry.o.props["length"])) < 2 {
-					return Undefined(), &RuntimeError{Message: "WeakMap entry must be a key-value pair"}
-				}
-				if _, e := m.o.weakmap.set(entry.o.props["0"], entry.o.props["1"]); e != nil {
-					return Undefined(), e
-				}
-			}
-		}
-		return m, nil
-	})
-	weakMapConstructor.f.constructOnly = true
-	r.global.define("WeakMap", weakMapConstructor, false)
-	symbolConstructor := nativeValue(func(_ *Runtime, _ Value, args []Value) (Value, error) {
-		description := ""
-		if len(args) > 0 && !args[0].IsUndefined() {
-			description = args[0].String()
-		}
-		return Value{k: KindSymbol, sy: &symbolValue{identity: newIdentity(), description: description}}, nil
-	})
-	symbolConstructor.f.noConstruct = true
-	symbolFor := nativeValue(func(_ *Runtime, _ Value, args []Value) (Value, error) {
-		description := "undefined"
-		if len(args) > 0 {
-			description = args[0].String()
-		}
-		return Value{k: KindSymbol, sy: &symbolValue{identity: newIdentity(), description: description, registered: true}}, nil
-	})
-	symbolConstructor.f.props["for"] = symbolFor
-	r.global.define("Symbol", symbolConstructor, false)
-	r.global.define("NaN", Number(math.NaN()), true)
-	r.global.define("Infinity", Number(math.Inf(1)), true)
-	arrayConstructor := nativeValue(func(_ *Runtime, _ Value, args []Value) (Value, error) { return NewArray(args...), nil })
-	arrayConstructor.f.props["of"] = nativeValue(func(_ *Runtime, _ Value, args []Value) (Value, error) { return NewArray(args...), nil })
-	arrayConstructor.f.props["from"] = nativeValue(func(_ *Runtime, _ Value, args []Value) (Value, error) {
-		if len(args) == 0 {
-			return NewArray(), nil
-		}
-		source := args[0]
-		if source.k == KindObject && source.o.array {
-			n := int(number(source.o.props["length"]))
-			out := make([]Value, n)
-			for i := range n {
-				out[i] = source.o.props[fmt.Sprint(i)]
-			}
-			return NewArray(out...), nil
-		}
-		if source.k == KindString {
-			out := make([]Value, 0, len([]rune(source.s)))
-			for _, ch := range source.s {
-				out = append(out, String(string(ch)))
-			}
-			return NewArray(out...), nil
-		}
-		return Undefined(), &RuntimeError{Message: "Array.from source is not iterable"}
-	})
-	r.global.define("Array", arrayConstructor, false)
-	objectConstructor := nativeValue(func(_ *Runtime, _ Value, args []Value) (Value, error) {
-		if len(args) > 0 && (args[0].k == KindObject || args[0].k == KindFunction) {
-			return args[0], nil
-		}
-		return NewObject(), nil
-	})
-	objectConstructor.f.props["hasOwn"] = nativeValue(func(_ *Runtime, _ Value, args []Value) (Value, error) {
-		if len(args) < 2 {
-			return Boolean(false), nil
-		}
-		_, ok := property(args[0], args[1].String())
-		return Boolean(ok), nil
-	})
-	objectIs := nativeValue(func(_ *Runtime, _ Value, args []Value) (Value, error) {
-		x, y := Undefined(), Undefined()
-		if len(args) > 0 {
-			x = args[0]
-		}
-		if len(args) > 1 {
-			y = args[1]
-		}
-		return Boolean(SameValue(x, y)), nil
-	})
-	objectIs.f.noConstruct = true
-	objectIs.f.props["name"] = String("is")
-	objectIs.f.props["length"] = Number(2)
-	objectIs.f.props["call"] = nativeValue(func(_ *Runtime, _ Value, args []Value) (Value, error) {
-		x, y := Undefined(), Undefined()
-		if len(args) > 1 {
-			x = args[1]
-		}
-		if len(args) > 2 {
-			y = args[2]
-		}
-		return Boolean(SameValue(x, y)), nil
-	})
-	objectConstructor.f.props["is"] = objectIs
-	r.global.define("Object", objectConstructor, false)
-	globalThis := NewObject()
-	globalThis.o.props["globalThis"] = globalThis
-	r.global.define("globalThis", globalThis, true)
-	return r
-}
-func (r *Runtime) Compile(s string) (*Program, error) {
-	b, e := parse(s)
-	if e != nil {
-		return nil, e
+	runtime := &Runtime{
+		global:  newEnvironment(nil),
+		config:  config,
+		symbols: make(map[string]*symbolValue),
 	}
-	return &Program{source: s, body: b}, nil
+	runtime.installGlobalBuiltins()
+	return runtime
 }
-func (r *Runtime) Run(p *Program) (Value, error) { return r.RunContext(context.Background(), p) }
-func (r *Runtime) RunString(s string) (Value, error) {
-	return r.RunStringContext(context.Background(), s)
-}
-func (r *Runtime) RunStringContext(ctx context.Context, s string) (Value, error) {
-	p, e := r.Compile(s)
-	if e != nil {
-		return Undefined(), e
+
+func (runtime *Runtime) Compile(source string) (*Program, error) {
+	parsed, err := parse(source)
+	if err != nil {
+		return nil, err
 	}
-	return r.RunContext(ctx, p)
+	return &Program{source: source, body: parsed.body, strict: parsed.strict}, nil
 }
-func (r *Runtime) RunContext(ctx context.Context, p *Program) (result Value, err error) {
-	if p == nil {
-		return Undefined(), ErrNilProgram
+
+func (runtime *Runtime) EvaluateString(ctx context.Context, source string) (Result, error) {
+	program, err := runtime.Compile(source)
+	if err != nil {
+		return Result{}, err
+	}
+	return runtime.Evaluate(ctx, program)
+}
+
+func (runtime *Runtime) Evaluate(ctx context.Context, program *Program) (result Result, err error) {
+	if program == nil {
+		return Result{}, ErrNilProgram
+	}
+	if runtime.exec != nil {
+		return Result{}, ErrRuntimeBusy
 	}
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	x := &execution{ctx: ctx, started: time.Now()}
-	r.exec = x
+	execution := &execution{ctx: ctx, started: time.Now(), strict: program.strict}
+	runtime.exec = execution
 	defer func() {
-		r.last = Stats{x.steps, x.maxSeen, time.Since(x.started)}
-		r.exec = nil
-		if v := recover(); v != nil {
-			err = &RuntimeError{Message: fmt.Sprintf("host panic: %v", v)}
-			result = Undefined()
+		result.Stats = Stats{Steps: execution.steps, MaxCallDepth: execution.maxSeen, Duration: time.Since(execution.started)}
+		runtime.exec = nil
+		if recovered := recover(); recovered != nil {
+			result.Value = Undefined()
+			err = fmt.Errorf("host panic: %v", recovered)
 		}
 	}()
-	result, _, err = r.evalStatements(p.body, r.global)
-	return
+
+	if declarationError := runtime.instantiateDeclarations(program.body, runtime.global); declarationError != nil {
+		return result, &Exception{Name: "SyntaxError", Message: declarationError.Error()}
+	}
+	completion := runtime.evalStatements(program.body, runtime.global)
+	if completion.err != nil {
+		return result, completion.err
+	}
+	if completion.kind == completionThrow {
+		return result, completion.exception()
+	}
+	result.Value = completion.value
+	return result, nil
 }
-func (r *Runtime) LastStats() Stats { return r.last }
-func (r *Runtime) Set(name string, x any) error {
-	v, e := r.fromGo(x)
-	if e != nil {
-		return e
+
+func (runtime *Runtime) Define(name string, value any) error {
+	runtimeValue, err := runtime.fromGo(value)
+	if err != nil {
+		return err
 	}
-	if _, ok := r.global.values[name]; ok {
-		return r.global.set(name, v)
+	if runtime.global.hasOwnBinding(name) {
+		return runtime.global.setMutableBinding(name, runtimeValue)
 	}
-	r.global.define(name, v, false)
+	runtime.global.createMutableBinding(name, runtimeValue)
 	return nil
 }
-func (r *Runtime) Get(name string) Value { v, _ := r.global.get(name); return v }
 
-// Call invokes a JavaScript or native function from host bridge code.
-func (r *Runtime) Call(fn, this Value, args ...Value) (Value, error) {
-	if fn.k != KindFunction {
-		return Undefined(), &RuntimeError{Message: "value is not callable"}
+func (runtime *Runtime) Lookup(name string) (Value, bool) {
+	value, err := runtime.global.getBindingValue(name)
+	return value, err == nil
+}
+
+func (runtime *Runtime) Call(ctx context.Context, callable, this Value, arguments ...Value) (result Result, err error) {
+	if callable.k != KindFunction || callable.f.call == nil {
+		return Result{}, typeError("value is not callable")
 	}
-	if r.exec != nil {
-		return r.call(fn, this, args, Span{})
+	if runtime.exec != nil {
+		value, err := runtime.call(callable, this, arguments, Span{})
+		return Result{Value: value}, err
 	}
-	x := &execution{ctx: context.Background(), started: time.Now()}
-	r.exec = x
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	execution := &execution{ctx: ctx, started: time.Now()}
+	runtime.exec = execution
 	defer func() {
-		r.last = Stats{x.steps, x.maxSeen, time.Since(x.started)}
-		r.exec = nil
+		result.Stats = Stats{Steps: execution.steps, MaxCallDepth: execution.maxSeen, Duration: time.Since(execution.started)}
+		runtime.exec = nil
+		if recovered := recover(); recovered != nil {
+			result.Value = Undefined()
+			err = fmt.Errorf("host panic: %v", recovered)
+		}
 	}()
-	return r.call(fn, this, args, Span{})
-}
-func (r *Runtime) checkpoint(s Span) error {
-	x := r.exec
-	x.steps++
-	if e := x.ctx.Err(); e != nil {
-		return &RuntimeError{Message: e.Error(), Span: s, Cause: ErrCancelled}
-	}
-	if r.maxSteps > 0 && x.steps > r.maxSteps {
-		return &RuntimeError{Message: ErrStepLimit.Error(), Span: s, Cause: ErrStepLimit}
-	}
-	return nil
-}
-func (r *Runtime) evalStatements(ss []stmt, e *environment) (Value, bool, error) {
-	out := Undefined()
-	for _, s := range ss {
-		if x := r.checkpoint(s.span()); x != nil {
-			return Undefined(), false, x
-		}
-		v, ret, x := r.evalStmt(s, e)
-		if x != nil || ret {
-			return v, ret, x
-		}
-		out = v
-	}
-	return out, false, nil
-}
-func (r *Runtime) evalStmt(s stmt, e *environment) (Value, bool, error) {
-	switch n := s.(type) {
-	case *exprStmt:
-		v, x := r.eval(n.e, e)
-		return v, false, x
-	case *varStmt:
-		v, x := r.eval(n.value, e)
-		if x == nil {
-			e.define(n.name, v, n.constant)
-		}
-		return v, false, x
-	case *varsStmt:
-		out := Undefined()
-		for _, declaration := range n.declarations {
-			v, _, x := r.evalStmt(declaration, e)
-			if x != nil {
-				return Undefined(), false, x
-			}
-			out = v
-		}
-		return out, false, nil
-	case *functionStmt:
-		v := r.makeFunction(n.fn, e)
-		e.define(n.name, v, true)
-		return v, false, nil
-	case *returnStmt:
-		v, x := r.eval(n.value, e)
-		return v, true, x
-	case *blockStmt:
-		return r.evalStatements(n.body, newEnvironment(e))
-	case *ifStmt:
-		v, x := r.eval(n.test, e)
-		if x != nil {
-			return Undefined(), false, x
-		}
-		if truthy(v) {
-			return r.evalStmt(n.then, e)
-		}
-		if n.otherwise != nil {
-			return r.evalStmt(n.otherwise, e)
-		}
-		return Undefined(), false, nil
-	case *whileStmt:
-		out := Undefined()
-		for {
-			if x := r.checkpoint(n.span()); x != nil {
-				return Undefined(), false, x
-			}
-			v, x := r.eval(n.test, e)
-			if x != nil {
-				return Undefined(), false, x
-			}
-			if !truthy(v) {
-				return out, false, nil
-			}
-			v, ret, x := r.evalStmt(n.body, e)
-			if x != nil || ret {
-				return v, ret, x
-			}
-			out = v
-		}
-	case *forStmt:
-		loopEnv := e
-		if n.lexical {
-			loopEnv = newEnvironment(e)
-		}
-		if _, _, x := r.evalStmt(n.init, loopEnv); x != nil {
-			return Undefined(), false, x
-		}
-		out := Undefined()
-		for {
-			if x := r.checkpoint(n.span()); x != nil {
-				return Undefined(), false, x
-			}
-			test, x := r.eval(n.test, loopEnv)
-			if x != nil {
-				return Undefined(), false, x
-			}
-			if !truthy(test) {
-				return out, false, nil
-			}
-			v, ret, x := r.evalStmt(n.body, loopEnv)
-			if x != nil || ret {
-				return v, ret, x
-			}
-			out = v
-			if n.lexical {
-				loopEnv = loopEnv.cloneLocal()
-			}
-			if _, x = r.eval(n.update, loopEnv); x != nil {
-				return Undefined(), false, x
-			}
-		}
-	}
-	return Undefined(), false, nil
-}
-func (r *Runtime) eval(x expr, e *environment) (Value, error) {
-	if z := r.checkpoint(x.span()); z != nil {
-		return Undefined(), z
-	}
-	switch n := x.(type) {
-	case *literalExpr:
-		return n.value, nil
-	case *identExpr:
-		v, ok := e.get(n.name)
-		if !ok {
-			return Undefined(), r.err(n.span(), n.name+" is not defined", nil)
-		}
-		return v, nil
-	case *arrayExpr:
-		a := make([]Value, len(n.values))
-		for i, q := range n.values {
-			v, x := r.eval(q, e)
-			if x != nil {
-				return Undefined(), x
-			}
-			a[i] = v
-		}
-		return NewArray(a...), nil
-	case *objectExpr:
-		o := NewObject()
-		for _, q := range n.entries {
-			v, x := r.eval(q.value, e)
-			if x != nil {
-				return Undefined(), x
-			}
-			o.o.props[q.name] = v
-		}
-		return o, nil
-	case *functionExpr:
-		return r.makeFunction(n, e), nil
-	case *unaryExpr:
-		if n.op == TokTypeof {
-			if id, ok := n.right.(*identExpr); ok {
-				if _, found := e.get(id.name); !found {
-					return String("undefined"), nil
-				}
-			}
-			v, x := r.eval(n.right, e)
-			if x != nil {
-				return Undefined(), x
-			}
-			switch v.k {
-			case KindUndefined:
-				return String("undefined"), nil
-			case KindBoolean:
-				return String("boolean"), nil
-			case KindNumber:
-				return String("number"), nil
-			case KindString:
-				return String("string"), nil
-			case KindFunction:
-				return String("function"), nil
-			case KindSymbol:
-				return String("symbol"), nil
-			default:
-				return String("object"), nil
-			}
-		}
-		v, x := r.eval(n.right, e)
-		if x != nil {
-			return Undefined(), x
-		}
-		switch n.op {
-		case TokBang:
-			return Boolean(!truthy(v)), nil
-		case TokMinus:
-			return Number(-number(v)), nil
-		default:
-			return Number(number(v)), nil
-		}
-	case *binaryExpr:
-		return r.evalBinary(n, e)
-	case *sequenceExpr:
-		out := Undefined()
-		for _, item := range n.values {
-			v, x := r.eval(item, e)
-			if x != nil {
-				return Undefined(), x
-			}
-			out = v
-		}
-		return out, nil
-	case *memberExpr:
-		o, x := r.eval(n.object, e)
-		if x != nil {
-			return Undefined(), x
-		}
-		k, x := r.eval(n.property, e)
-		if x != nil {
-			return Undefined(), x
-		}
-		v, _ := property(o, k.String())
-		return v, nil
-	case *assignExpr:
-		v, x := r.eval(n.value, e)
-		if x != nil {
-			return Undefined(), x
-		}
-		switch t := n.target.(type) {
-		case *identExpr:
-			x = e.set(t.name, v)
-		case *memberExpr:
-			o, z := r.eval(t.object, e)
-			if z != nil {
-				return Undefined(), z
-			}
-			k, z := r.eval(t.property, e)
-			if z != nil {
-				return Undefined(), z
-			}
-			x = setProperty(o, k.String(), v)
-		}
-		if x != nil {
-			return Undefined(), r.err(n.span(), x.Error(), x)
-		}
-		return v, nil
-	case *callExpr:
-		return r.evalCall(n, e)
-	}
-	return Undefined(), r.err(x.span(), "unsupported feature", nil)
-}
-func (r *Runtime) evalBinary(n *binaryExpr, e *environment) (Value, error) {
-	l, x := r.eval(n.left, e)
-	if x != nil {
-		return Undefined(), x
-	}
-	if n.op == TokAnd && !truthy(l) {
-		return l, nil
-	}
-	if n.op == TokOr && truthy(l) {
-		return l, nil
-	}
-	q, x := r.eval(n.right, e)
-	if x != nil {
-		return Undefined(), x
-	}
-	switch n.op {
-	case TokPlus:
-		if l.k == KindString || q.k == KindString {
-			return String(l.String() + q.String()), nil
-		}
-		return Number(number(l) + number(q)), nil
-	case TokMinus:
-		return Number(number(l) - number(q)), nil
-	case TokStar:
-		return Number(number(l) * number(q)), nil
-	case TokSlash:
-		return Number(number(l) / number(q)), nil
-	case TokLT:
-		return Boolean(number(l) < number(q)), nil
-	case TokLE:
-		return Boolean(number(l) <= number(q)), nil
-	case TokGT:
-		return Boolean(number(l) > number(q)), nil
-	case TokGE:
-		return Boolean(number(l) >= number(q)), nil
-	case TokEQ, TokStrictEQ:
-		return Boolean(strictlyEqual(l, q)), nil
-	case TokNE, TokStrictNE:
-		return Boolean(!strictlyEqual(l, q)), nil
-	}
-	return q, nil
-}
-func strictlyEqual(a, b Value) bool {
-	if a.k != b.k {
-		return false
-	}
-	switch a.k {
-	case KindUndefined, KindNull:
-		return true
-	case KindBoolean:
-		return a.b == b.b
-	case KindNumber:
-		return a.n == b.n
-	case KindString:
-		return a.s == b.s
-	case KindObject:
-		return a.o == b.o
-	case KindFunction:
-		return a.f == b.f
-	case KindSymbol:
-		return a.sy == b.sy
-	}
-	return false
-}
-
-func (r *Runtime) makeFunction(n *functionExpr, e *environment) Value {
-	return Value{k: KindFunction, f: &function{identity: newIdentity(), props: map[string]Value{}, params: n.params, body: n.body, closure: e, name: n.name}}
-}
-func (r *Runtime) evalCall(n *callExpr, e *environment) (Value, error) {
-	var this = Undefined()
-	callee, x := r.eval(n.callee, e)
-	if x != nil {
-		return Undefined(), x
-	}
-	if m, ok := n.callee.(*memberExpr); ok {
-		this, x = r.eval(m.object, e)
-		if x != nil {
-			return Undefined(), x
-		}
-	}
-	if callee.k != KindFunction {
-		return Undefined(), r.err(n.span(), "value is not callable", nil)
-	}
-	if callee.f.constructOnly && !n.construct {
-		return Undefined(), r.err(n.span(), "constructor requires new", nil)
-	}
-	if callee.f.noConstruct && n.construct {
-		return Undefined(), r.err(n.span(), "function is not a constructor", nil)
-	}
-	args := make([]Value, len(n.args))
-	for i, a := range n.args {
-		args[i], x = r.eval(a, e)
-		if x != nil {
-			return Undefined(), x
-		}
-	}
-	return r.call(callee, this, args, n.span())
-}
-func (r *Runtime) call(v, this Value, args []Value, s Span) (Value, error) {
-	f := v.f
-	r.exec.depth++
-	defer func() { r.exec.depth-- }()
-	if r.exec.depth > r.exec.maxSeen {
-		r.exec.maxSeen = r.exec.depth
-	}
-	if r.maxDepth > 0 && r.exec.depth > r.maxDepth {
-		return Undefined(), r.err(s, ErrCallDepth.Error(), ErrCallDepth)
-	}
-	if x := r.checkpoint(s); x != nil {
-		return Undefined(), x
-	}
-	if f.native != nil {
-		return f.native(r, this, args)
-	}
-	env := newEnvironment(f.closure)
-	for i, p := range f.params {
-		v := Undefined()
-		if i < len(args) {
-			v = args[i]
-		}
-		env.define(p, v, false)
-	}
-	if f.name != "" {
-		env.define(f.name, Value{k: KindFunction, f: f}, true)
-	}
-	v, _, x := r.evalStatements(f.body, env)
-	runtime.KeepAlive(f.identity)
-	return v, x
-}
-func (r *Runtime) err(s Span, m string, c error) error {
-	return &RuntimeError{Message: m, Span: s, Cause: c}
-}
-func (r *Runtime) fromGo(x any) (Value, error) {
-	if x == nil {
-		return Null(), nil
-	}
-	if v, ok := x.(Value); ok {
-		return v, nil
-	}
-	if f, ok := x.(NativeFunction); ok {
-		return nativeValue(f), nil
-	}
-	v := reflect.ValueOf(x)
-	if v.Kind() == reflect.Func {
-		return nativeValue(reflectFunction(v)), nil
-	}
-	switch q := x.(type) {
-	case string:
-		return String(q), nil
-	case bool:
-		return Boolean(q), nil
-	case int:
-		return Number(float64(q)), nil
-	case int64:
-		return Number(float64(q)), nil
-	case float64:
-		return Number(q), nil
-	}
-	return Undefined(), fmt.Errorf("unsupported Go value %T", x)
-}
-func reflectFunction(fn reflect.Value) NativeFunction {
-	return func(_ *Runtime, _ Value, args []Value) (Value, error) {
-		t := fn.Type()
-		if (!t.IsVariadic() && len(args) != t.NumIn()) || (t.IsVariadic() && len(args) < t.NumIn()-1) {
-			return Undefined(), &RuntimeError{Message: "invalid host function argument count"}
-		}
-		in := make([]reflect.Value, len(args))
-		for i, a := range args {
-			typ := t.In(i)
-			if t.IsVariadic() && i >= t.NumIn()-1 {
-				typ = t.In(t.NumIn() - 1).Elem()
-			}
-			switch typ.Kind() {
-			case reflect.String:
-				in[i] = reflect.ValueOf(a.String()).Convert(typ)
-			case reflect.Float64:
-				in[i] = reflect.ValueOf(number(a)).Convert(typ)
-			case reflect.Int:
-				in[i] = reflect.ValueOf(int(number(a))).Convert(typ)
-			case reflect.Bool:
-				in[i] = reflect.ValueOf(truthy(a)).Convert(typ)
-			default:
-				return Undefined(), &RuntimeError{Message: "unsupported host argument type"}
-			}
-		}
-		out := fn.Call(in)
-		if len(out) == 0 {
-			return Undefined(), nil
-		}
-		switch v := out[0].Interface().(type) {
-		case string:
-			return String(v), nil
-		case int:
-			return Number(float64(v)), nil
-		case float64:
-			return Number(v), nil
-		case bool:
-			return Boolean(v), nil
-		case Value:
-			return v, nil
-		}
-		return Undefined(), &RuntimeError{Message: "unsupported host return type"}
-	}
+	result.Value, err = runtime.call(callable, this, arguments, Span{})
+	return result, err
 }
