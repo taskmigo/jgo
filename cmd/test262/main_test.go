@@ -145,6 +145,9 @@ func TestRefreshBaselineComparesBeforeWritingSnapshot(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if len(b) == 0 || b[len(b)-1] != '\n' {
+		t.Fatal("canonical baseline does not end with a newline")
+	}
 	var stored map[string]any
 	if err := json.Unmarshal(b, &stored); err != nil {
 		t.Fatal(err)
