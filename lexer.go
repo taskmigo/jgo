@@ -141,7 +141,7 @@ func (l *lexer) next() (Token, error) {
 	return t, &SyntaxError{t.Span, t, "invalid character"}
 }
 
-var keywords = map[string]TokenType{"let": TokLet, "const": TokConst, "function": TokFunction, "return": TokReturn, "if": TokIf, "else": TokElse, "while": TokWhile, "true": TokTrue, "false": TokFalse, "null": TokNull, "undefined": TokUndefined, "new": TokNew}
+var keywords = map[string]TokenType{"let": TokLet, "var": TokVar, "const": TokConst, "function": TokFunction, "return": TokReturn, "if": TokIf, "else": TokElse, "while": TokWhile, "true": TokTrue, "false": TokFalse, "null": TokNull, "undefined": TokUndefined, "new": TokNew}
 
 func isIdentStart(c byte) bool {
 	return c == '_' || c == '$' || c >= utf8.RuneSelf || unicode.IsLetter(rune(c))

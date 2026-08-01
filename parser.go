@@ -27,7 +27,7 @@ func (p *parser) statement() (stmt, error) {
 	if p.match(TokSemi) {
 		return &exprStmt{base: base{p.prev().Span}, e: &literalExpr{value: Undefined()}}, nil
 	}
-	if p.match(TokLet, TokConst) {
+	if p.match(TokLet, TokVar, TokConst) {
 		k := p.prev()
 		n, e := p.need(TokIdent, "expected variable name")
 		if e != nil {

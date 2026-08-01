@@ -55,6 +55,17 @@ func TestWeakMapSemantics(t *testing.T) {
 		t.Fatal(v, e)
 	}
 }
+
+func TestWeakMapConstructorAndVarSemantics(t *testing.T) {
+	r := New()
+	v, err := r.RunString(`var a = new WeakMap(null); var k = {}; a.set(k, 7); a.get(k);`)
+	if err != nil || v.Float64() != 7 {
+		t.Fatalf("value=%v error=%v", v, err)
+	}
+	if _, err := r.RunString(`WeakMap()`); err == nil {
+		t.Fatal("WeakMap call without new succeeded")
+	}
+}
 func TestWeakMapDoesNotKeepKeyAlive(t *testing.T) {
 	m := newWeakMapValue()
 	done := make(chan struct{})

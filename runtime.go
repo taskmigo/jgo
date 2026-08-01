@@ -77,9 +77,9 @@ func New(options ...Option) *Runtime {
 	for _, o := range options {
 		o(r)
 	}
-	r.global.define("WeakMap", nativeValue(func(_ *Runtime, _ Value, args []Value) (Value, error) {
+	weakMapConstructor := nativeValue(func(_ *Runtime, _ Value, args []Value) (Value, error) {
 		m := newWeakMapValue()
-		if len(args) > 0 && !args[0].IsUndefined() {
+		if len(args) > 0 && !args[0].IsUndefined() && args[0].Kind() != KindNull {
 			it := args[0]
 			if it.k != KindObject || !it.o.array {
 				return Undefined(), &RuntimeError{Message: "WeakMap iterable must be an array"}
@@ -96,7 +96,9 @@ func New(options ...Option) *Runtime {
 			}
 		}
 		return m, nil
-	}), false)
+	})
+	weakMapConstructor.f.constructOnly = true
+	r.global.define("WeakMap", weakMapConstructor, false)
 	return r
 }
 func (r *Runtime) Compile(s string) (*Program, error) {
@@ -150,6 +152,23 @@ func (r *Runtime) Set(name string, x any) error {
 	return nil
 }
 func (r *Runtime) Get(name string) Value { v, _ := r.global.get(name); return v }
+
+// Call invokes a JavaScript or native function from host bridge code.
+func (r *Runtime) Call(fn, this Value, args ...Value) (Value, error) {
+	if fn.k != KindFunction {
+		return Undefined(), &RuntimeError{Message: "value is not callable"}
+	}
+	if r.exec != nil {
+		return r.call(fn, this, args, Span{})
+	}
+	x := &execution{ctx: context.Background(), started: time.Now()}
+	r.exec = x
+	defer func() {
+		r.last = Stats{x.steps, x.maxSeen, time.Since(x.started)}
+		r.exec = nil
+	}()
+	return r.call(fn, this, args, Span{})
+}
 func (r *Runtime) checkpoint(s Span) error {
 	x := r.exec
 	x.steps++
@@ -381,7 +400,7 @@ func equal(a, b Value) bool {
 	return false
 }
 func (r *Runtime) makeFunction(n *functionExpr, e *environment) Value {
-	return Value{k: KindFunction, f: &function{identity: newIdentity(), params: n.params, body: n.body, closure: e, name: n.name}}
+	return Value{k: KindFunction, f: &function{identity: newIdentity(), props: map[string]Value{}, params: n.params, body: n.body, closure: e, name: n.name}}
 }
 func (r *Runtime) evalCall(n *callExpr, e *environment) (Value, error) {
 	var this = Undefined()
@@ -397,6 +416,9 @@ func (r *Runtime) evalCall(n *callExpr, e *environment) (Value, error) {
 	}
 	if callee.k != KindFunction {
 		return Undefined(), r.err(n.span(), "value is not callable", nil)
+	}
+	if callee.f.constructOnly && !n.construct {
+		return Undefined(), r.err(n.span(), "constructor requires new", nil)
 	}
 	args := make([]Value, len(n.args))
 	for i, a := range n.args {

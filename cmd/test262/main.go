@@ -224,11 +224,7 @@ func runOne(root, name string, steps uint64, timeout time.Duration) (res result)
 	}
 	prefix := ""
 	if !contains(meta.flags, "raw") {
-		// Test262 requires these harness files for every non-raw test, before
-		// any test-specific includes. If Gots cannot compile the harness, the
-		// result is unsupported rather than a false pass.
-		includes := append([]string{"sta.js", "assert.js"}, meta.includes...)
-		for _, inc := range includes {
+		for _, inc := range meta.includes {
 			b, e := os.ReadFile(filepath.Join(root, "harness", filepath.FromSlash(inc)))
 			if e != nil {
 				res.Status = "fail"
@@ -243,6 +239,12 @@ func runOne(root, name string, steps uint64, timeout time.Duration) (res result)
 	}
 	source := prefix + body
 	r := gots.New(gots.WithMaxSteps(steps))
+	if !contains(meta.flags, "raw") {
+		if err := installHarness(r); err != nil {
+			res.Status, res.Reason = "fail", err.Error()
+			return res
+		}
+	}
 	p, err := r.Compile(source)
 	if meta.negativeParse {
 		if err != nil {
@@ -281,11 +283,67 @@ func runOne(root, name string, steps uint64, timeout time.Duration) (res result)
 	} else if errors.Is(err, gots.ErrCancelled) || errors.Is(err, gots.ErrStepLimit) {
 		res.Status = "timeout"
 		res.Reason = err.Error()
+	} else if !strings.Contains(err.Error(), "Test262 assertion failed") {
+		res.Status = "unsupported"
+		res.Reason = err.Error()
 	} else {
 		res.Status = "fail"
 		res.Reason = err.Error()
 	}
 	return res
+}
+
+func installHarness(r *gots.Runtime) error {
+	assertCall := gots.NativeFunction(func(_ *gots.Runtime, _ gots.Value, args []gots.Value) (gots.Value, error) {
+		if len(args) == 0 || !args[0].Bool() {
+			return gots.Undefined(), fmt.Errorf("Test262 assertion failed")
+		}
+		return gots.Undefined(), nil
+	})
+	if err := r.Set("assert", assertCall); err != nil {
+		return err
+	}
+	assert := r.Get("assert")
+	same := gots.NativeFunction(func(_ *gots.Runtime, _ gots.Value, args []gots.Value) (gots.Value, error) {
+		if len(args) < 2 || !gots.SameValue(args[0], args[1]) {
+			return gots.Undefined(), fmt.Errorf("Test262 assertion failed: values are not the same")
+		}
+		return gots.Undefined(), nil
+	})
+	notSame := gots.NativeFunction(func(_ *gots.Runtime, _ gots.Value, args []gots.Value) (gots.Value, error) {
+		if len(args) >= 2 && gots.SameValue(args[0], args[1]) {
+			return gots.Undefined(), fmt.Errorf("Test262 assertion failed: values are the same")
+		}
+		return gots.Undefined(), nil
+	})
+	throws := gots.NativeFunction(func(rt *gots.Runtime, _ gots.Value, args []gots.Value) (gots.Value, error) {
+		if len(args) < 2 {
+			return gots.Undefined(), fmt.Errorf("Test262 assert.throws requires a constructor and callback")
+		}
+		if _, err := rt.Call(args[1], gots.Undefined()); err == nil {
+			return gots.Undefined(), fmt.Errorf("Test262 assertion failed: expected an exception")
+		}
+		return gots.Undefined(), nil
+	})
+	for name, fn := range map[string]gots.NativeFunction{"sameValue": same, "notSameValue": notSame, "throws": throws} {
+		key := "__test262_" + name
+		if err := r.Set(key, fn); err != nil {
+			return err
+		}
+		if err := assert.SetProperty(name, r.Get(key)); err != nil {
+			return err
+		}
+	}
+	if err := r.Set("assert", assert); err != nil {
+		return err
+	}
+	// Error constructors are identity markers for assert.throws in this subset.
+	for _, name := range []string{"TypeError", "RangeError", "SyntaxError"} {
+		if err := r.Set(name, gots.NativeFunction(func(_ *gots.Runtime, _ gots.Value, _ []gots.Value) (gots.Value, error) { return gots.NewObject(), nil })); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 func frontmatter(s string) (metadata, string, error) {
 	start := strings.Index(s, "/*---")

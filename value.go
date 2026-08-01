@@ -76,6 +76,12 @@ type Object struct {
 func NewObject() Value {
 	return Value{k: KindObject, o: &Object{identity: newIdentity(), props: map[string]Value{}}}
 }
+
+// SetProperty defines an own property on an object for host-provided APIs.
+func (v Value) SetProperty(name string, value Value) error { return setProperty(v, name, value) }
+
+// SameValue reports primitive equality or object/function identity.
+func SameValue(a, b Value) bool { return equal(a, b) }
 func NewArray(values ...Value) Value {
 	o := &Object{identity: newIdentity(), props: map[string]Value{}, array: true}
 	for i, v := range values {
@@ -87,16 +93,18 @@ func NewArray(values ...Value) Value {
 
 type NativeFunction func(runtime *Runtime, this Value, args []Value) (Value, error)
 type function struct {
-	identity *weakIdentity
-	native   NativeFunction
-	params   []string
-	body     []stmt
-	closure  *environment
-	name     string
+	identity      *weakIdentity
+	native        NativeFunction
+	props         map[string]Value
+	constructOnly bool
+	params        []string
+	body          []stmt
+	closure       *environment
+	name          string
 }
 
 func nativeValue(fn NativeFunction) Value {
-	return Value{k: KindFunction, f: &function{identity: newIdentity(), native: fn}}
+	return Value{k: KindFunction, f: &function{identity: newIdentity(), native: fn, props: map[string]Value{}}}
 }
 func truthy(v Value) bool {
 	switch v.k {
@@ -146,10 +154,18 @@ func property(v Value, key string) (Value, bool) {
 		x, ok := v.o.props[key]
 		return x, ok
 	}
+	if v.k == KindFunction {
+		x, ok := v.f.props[key]
+		return x, ok
+	}
 	return Undefined(), false
 }
 func setProperty(v Value, key string, x Value) error {
 	if v.k != KindObject {
+		if v.k == KindFunction {
+			v.f.props[key] = x
+			return nil
+		}
 		return fmt.Errorf("cannot set property on %s", v.String())
 	}
 	v.o.props[key] = x

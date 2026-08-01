@@ -17,6 +17,7 @@ const (
 	TokNumber    TokenType = "number"
 	TokString    TokenType = "string"
 	TokLet       TokenType = "let"
+	TokVar       TokenType = "var"
 	TokConst     TokenType = "const"
 	TokFunction  TokenType = "function"
 	TokReturn    TokenType = "return"

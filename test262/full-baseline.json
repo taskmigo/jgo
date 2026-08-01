@@ -1,12 +1,12 @@
 {
   "byFeature": {
     "(unclassified)": {
-      "fail": 299,
-      "pass": 1362,
+      "fail": 744,
+      "pass": 1874,
       "skip": 0,
       "timeout": 0,
       "total": 18943,
-      "unsupported": 17282
+      "unsupported": 16325
     },
     "AggregateError": {
       "fail": 0,
@@ -66,19 +66,19 @@
     },
     "ArrayBuffer": {
       "fail": 0,
-      "pass": 0,
+      "pass": 2,
       "skip": 0,
       "timeout": 0,
       "total": 278,
-      "unsupported": 278
+      "unsupported": 276
     },
     "Atomics": {
       "fail": 0,
-      "pass": 0,
+      "pass": 4,
       "skip": 0,
       "timeout": 0,
       "total": 386,
-      "unsupported": 386
+      "unsupported": 382
     },
     "Atomics.pause": {
       "fail": 0,
@@ -97,12 +97,12 @@
       "unsupported": 101
     },
     "BigInt": {
-      "fail": 0,
-      "pass": 39,
+      "fail": 37,
+      "pass": 7,
       "skip": 0,
       "timeout": 0,
       "total": 1501,
-      "unsupported": 1462
+      "unsupported": 1457
     },
     "DataView": {
       "fail": 0,
@@ -266,11 +266,11 @@
     },
     "Intl.DateTimeFormat-extend-timezonename": {
       "fail": 0,
-      "pass": 0,
+      "pass": 1,
       "skip": 0,
       "timeout": 0,
       "total": 2,
-      "unsupported": 2
+      "unsupported": 1
     },
     "Intl.DateTimeFormat-formatRange": {
       "fail": 0,
@@ -290,11 +290,11 @@
     },
     "Intl.DisplayNames": {
       "fail": 0,
-      "pass": 0,
+      "pass": 1,
       "skip": 0,
       "timeout": 0,
       "total": 47,
-      "unsupported": 47
+      "unsupported": 46
     },
     "Intl.DisplayNames-v2": {
       "fail": 0,
@@ -354,11 +354,11 @@
     },
     "Intl.NumberFormat-v3": {
       "fail": 0,
-      "pass": 0,
+      "pass": 2,
       "skip": 0,
       "timeout": 0,
       "total": 99,
-      "unsupported": 99
+      "unsupported": 97
     },
     "Intl.RelativeTimeFormat": {
       "fail": 0,
@@ -394,11 +394,11 @@
     },
     "Map": {
       "fail": 0,
-      "pass": 0,
+      "pass": 7,
       "skip": 0,
       "timeout": 0,
       "total": 40,
-      "unsupported": 40
+      "unsupported": 33
     },
     "Math.sumPrecise": {
       "fail": 0,
@@ -418,11 +418,11 @@
     },
     "Object.hasOwn": {
       "fail": 0,
-      "pass": 0,
+      "pass": 2,
       "skip": 0,
       "timeout": 0,
       "total": 62,
-      "unsupported": 62
+      "unsupported": 60
     },
     "Object.is": {
       "fail": 0,
@@ -434,75 +434,75 @@
     },
     "Promise": {
       "fail": 0,
-      "pass": 0,
+      "pass": 1,
       "skip": 0,
       "timeout": 0,
       "total": 4,
-      "unsupported": 4
+      "unsupported": 3
     },
     "Promise.allSettled": {
       "fail": 0,
-      "pass": 0,
+      "pass": 2,
       "skip": 0,
       "timeout": 0,
       "total": 102,
-      "unsupported": 102
+      "unsupported": 100
     },
     "Promise.any": {
       "fail": 0,
-      "pass": 0,
+      "pass": 1,
       "skip": 0,
       "timeout": 0,
       "total": 92,
-      "unsupported": 92
+      "unsupported": 91
     },
     "Promise.prototype.finally": {
       "fail": 0,
-      "pass": 0,
+      "pass": 1,
       "skip": 0,
       "timeout": 0,
       "total": 29,
-      "unsupported": 29
+      "unsupported": 28
     },
     "Proxy": {
       "fail": 0,
-      "pass": 0,
+      "pass": 14,
       "skip": 0,
       "timeout": 0,
       "total": 479,
-      "unsupported": 479
+      "unsupported": 465
     },
     "Reflect": {
       "fail": 0,
-      "pass": 0,
+      "pass": 26,
       "skip": 0,
       "timeout": 0,
       "total": 478,
-      "unsupported": 478
+      "unsupported": 452
     },
     "Reflect.construct": {
       "fail": 0,
-      "pass": 0,
+      "pass": 2,
       "skip": 0,
       "timeout": 0,
       "total": 704,
-      "unsupported": 704
+      "unsupported": 702
     },
     "Reflect.set": {
       "fail": 0,
-      "pass": 0,
+      "pass": 2,
       "skip": 0,
       "timeout": 0,
       "total": 46,
-      "unsupported": 46
+      "unsupported": 44
     },
     "Reflect.setPrototypeOf": {
       "fail": 0,
-      "pass": 0,
+      "pass": 3,
       "skip": 0,
       "timeout": 0,
       "total": 23,
-      "unsupported": 23
+      "unsupported": 20
     },
     "RegExp.escape": {
       "fail": 0,
@@ -514,11 +514,11 @@
     },
     "Set": {
       "fail": 0,
-      "pass": 0,
+      "pass": 18,
       "skip": 0,
       "timeout": 0,
       "total": 38,
-      "unsupported": 38
+      "unsupported": 20
     },
     "ShadowRealm": {
       "fail": 0,
@@ -529,20 +529,20 @@
       "unsupported": 64
     },
     "SharedArrayBuffer": {
-      "fail": 0,
-      "pass": 0,
+      "fail": 1,
+      "pass": 15,
       "skip": 0,
       "timeout": 0,
       "total": 467,
-      "unsupported": 467
+      "unsupported": 451
     },
     "String.fromCodePoint": {
       "fail": 0,
-      "pass": 0,
+      "pass": 3,
       "skip": 0,
       "timeout": 0,
       "total": 22,
-      "unsupported": 22
+      "unsupported": 19
     },
     "String.prototype.at": {
       "fail": 0,
@@ -554,19 +554,19 @@
     },
     "String.prototype.endsWith": {
       "fail": 0,
-      "pass": 0,
+      "pass": 2,
       "skip": 0,
       "timeout": 0,
       "total": 27,
-      "unsupported": 27
+      "unsupported": 25
     },
     "String.prototype.includes": {
-      "fail": 0,
-      "pass": 0,
+      "fail": 1,
+      "pass": 2,
       "skip": 0,
       "timeout": 0,
       "total": 26,
-      "unsupported": 26
+      "unsupported": 23
     },
     "String.prototype.isWellFormed": {
       "fail": 0,
@@ -618,11 +618,11 @@
     },
     "Symbol": {
       "fail": 0,
-      "pass": 0,
+      "pass": 73,
       "skip": 0,
       "timeout": 0,
       "total": 1494,
-      "unsupported": 1494
+      "unsupported": 1421
     },
     "Symbol.asyncIterator": {
       "fail": 0,
@@ -650,19 +650,19 @@
     },
     "Symbol.iterator": {
       "fail": 0,
-      "pass": 0,
+      "pass": 1,
       "skip": 0,
       "timeout": 0,
       "total": 1867,
-      "unsupported": 1867
+      "unsupported": 1866
     },
     "Symbol.match": {
       "fail": 0,
-      "pass": 0,
+      "pass": 1,
       "skip": 0,
       "timeout": 0,
       "total": 88,
-      "unsupported": 88
+      "unsupported": 87
     },
     "Symbol.matchAll": {
       "fail": 0,
@@ -682,19 +682,19 @@
     },
     "Symbol.replace": {
       "fail": 0,
-      "pass": 0,
+      "pass": 1,
       "skip": 0,
       "timeout": 0,
       "total": 98,
-      "unsupported": 98
+      "unsupported": 97
     },
     "Symbol.search": {
       "fail": 0,
-      "pass": 0,
+      "pass": 1,
       "skip": 0,
       "timeout": 0,
       "total": 37,
-      "unsupported": 37
+      "unsupported": 36
     },
     "Symbol.species": {
       "fail": 0,
@@ -706,19 +706,19 @@
     },
     "Symbol.split": {
       "fail": 0,
-      "pass": 0,
+      "pass": 1,
       "skip": 0,
       "timeout": 0,
       "total": 58,
-      "unsupported": 58
+      "unsupported": 57
     },
     "Symbol.toPrimitive": {
       "fail": 0,
-      "pass": 0,
+      "pass": 4,
       "skip": 0,
       "timeout": 0,
       "total": 233,
-      "unsupported": 233
+      "unsupported": 229
     },
     "Symbol.toStringTag": {
       "fail": 0,
@@ -746,11 +746,11 @@
     },
     "TypedArray": {
       "fail": 0,
-      "pass": 0,
+      "pass": 10,
       "skip": 0,
       "timeout": 0,
       "total": 2524,
-      "unsupported": 2524
+      "unsupported": 2514
     },
     "TypedArray.prototype.at": {
       "fail": 0,
@@ -794,11 +794,11 @@
     },
     "WeakMap": {
       "fail": 0,
-      "pass": 0,
+      "pass": 22,
       "skip": 0,
       "timeout": 0,
       "total": 79,
-      "unsupported": 79
+      "unsupported": 57
     },
     "WeakRef": {
       "fail": 0,
@@ -810,11 +810,11 @@
     },
     "WeakSet": {
       "fail": 0,
-      "pass": 0,
+      "pass": 7,
       "skip": 0,
       "timeout": 0,
       "total": 34,
-      "unsupported": 34
+      "unsupported": 27
     },
     "__getter__": {
       "fail": 0,
@@ -858,27 +858,27 @@
     },
     "array-find-from-last": {
       "fail": 0,
-      "pass": 0,
+      "pass": 2,
       "skip": 0,
       "timeout": 0,
       "total": 109,
-      "unsupported": 109
+      "unsupported": 107
     },
     "array-grouping": {
       "fail": 0,
-      "pass": 0,
+      "pass": 4,
       "skip": 0,
       "timeout": 0,
       "total": 28,
-      "unsupported": 28
+      "unsupported": 24
     },
     "arraybuffer-transfer": {
       "fail": 0,
-      "pass": 0,
+      "pass": 1,
       "skip": 0,
       "timeout": 0,
       "total": 59,
-      "unsupported": 59
+      "unsupported": 58
     },
     "arrow-function": {
       "fail": 0,
@@ -889,16 +889,16 @@
       "unsupported": 885
     },
     "async-functions": {
-      "fail": 0,
-      "pass": 203,
+      "fail": 39,
+      "pass": 164,
       "skip": 0,
       "timeout": 0,
       "total": 705,
       "unsupported": 502
     },
     "async-iteration": {
-      "fail": 0,
-      "pass": 593,
+      "fail": 28,
+      "pass": 565,
       "skip": 0,
       "timeout": 0,
       "total": 4971,
@@ -906,11 +906,11 @@
     },
     "await-dictionary": {
       "fail": 0,
-      "pass": 0,
+      "pass": 2,
       "skip": 0,
       "timeout": 0,
       "total": 89,
-      "unsupported": 89
+      "unsupported": 87
     },
     "caller": {
       "fail": 0,
@@ -937,20 +937,20 @@
       "unsupported": 132
     },
     "class": {
-      "fail": 0,
-      "pass": 744,
+      "fail": 88,
+      "pass": 658,
       "skip": 0,
       "timeout": 0,
       "total": 4792,
-      "unsupported": 4048
+      "unsupported": 4046
     },
     "class-fields-private": {
       "fail": 0,
-      "pass": 370,
+      "pass": 374,
       "skip": 0,
       "timeout": 0,
       "total": 1134,
-      "unsupported": 764
+      "unsupported": 760
     },
     "class-fields-private-in": {
       "fail": 0,
@@ -961,8 +961,8 @@
       "unsupported": 11
     },
     "class-fields-public": {
-      "fail": 0,
-      "pass": 289,
+      "fail": 38,
+      "pass": 251,
       "skip": 0,
       "timeout": 0,
       "total": 2058,
@@ -977,8 +977,8 @@
       "unsupported": 1365
     },
     "class-static-block": {
-      "fail": 0,
-      "pass": 28,
+      "fail": 13,
+      "pass": 15,
       "skip": 0,
       "timeout": 0,
       "total": 65,
@@ -993,12 +993,12 @@
       "unsupported": 329
     },
     "class-static-fields-public": {
-      "fail": 0,
-      "pass": 28,
+      "fail": 12,
+      "pass": 18,
       "skip": 0,
       "timeout": 0,
       "total": 213,
-      "unsupported": 185
+      "unsupported": 183
     },
     "class-static-methods-private": {
       "fail": 0,
@@ -1017,8 +1017,8 @@
       "unsupported": 22
     },
     "computed-property-names": {
-      "fail": 0,
-      "pass": 12,
+      "fail": 4,
+      "pass": 8,
       "skip": 0,
       "timeout": 0,
       "total": 478,
@@ -1049,8 +1049,8 @@
       "unsupported": 27
     },
     "default-parameters": {
-      "fail": 0,
-      "pass": 219,
+      "fail": 13,
+      "pass": 206,
       "skip": 0,
       "timeout": 0,
       "total": 2269,
@@ -1066,19 +1066,19 @@
     },
     "destructuring-binding": {
       "fail": 0,
-      "pass": 516,
+      "pass": 519,
       "skip": 0,
       "timeout": 0,
       "total": 6637,
-      "unsupported": 6121
+      "unsupported": 6118
     },
     "dynamic-import": {
-      "fail": 0,
-      "pass": 376,
+      "fail": 196,
+      "pass": 194,
       "skip": 0,
       "timeout": 0,
       "total": 1011,
-      "unsupported": 635
+      "unsupported": 621
     },
     "error-cause": {
       "fail": 0,
@@ -1097,12 +1097,12 @@
       "unsupported": 35
     },
     "explicit-resource-management": {
-      "fail": 0,
-      "pass": 60,
+      "fail": 18,
+      "pass": 48,
       "skip": 0,
       "timeout": 0,
       "total": 483,
-      "unsupported": 423
+      "unsupported": 417
     },
     "exponentiation": {
       "fail": 0,
@@ -1137,12 +1137,12 @@
       "unsupported": 5
     },
     "generators": {
-      "fail": 0,
-      "pass": 418,
+      "fail": 15,
+      "pass": 406,
       "skip": 0,
       "timeout": 0,
       "total": 4119,
-      "unsupported": 3701
+      "unsupported": 3698
     },
     "globalThis": {
       "fail": 0,
@@ -1153,12 +1153,12 @@
       "unsupported": 148
     },
     "hashbang": {
-      "fail": 18,
+      "fail": 17,
       "pass": 6,
       "skip": 0,
       "timeout": 0,
       "total": 29,
-      "unsupported": 5
+      "unsupported": 6
     },
     "host-gc-required": {
       "fail": 0,
@@ -1177,8 +1177,8 @@
       "unsupported": 66
     },
     "import-attributes": {
-      "fail": 0,
-      "pass": 1,
+      "fail": 1,
+      "pass": 0,
       "skip": 0,
       "timeout": 0,
       "total": 101,
@@ -1193,12 +1193,12 @@
       "unsupported": 5
     },
     "import-defer": {
-      "fail": 0,
-      "pass": 90,
+      "fail": 46,
+      "pass": 48,
       "skip": 0,
       "timeout": 0,
       "total": 252,
-      "unsupported": 162
+      "unsupported": 158
     },
     "import-text": {
       "fail": 0,
@@ -1209,12 +1209,12 @@
       "unsupported": 6
     },
     "import.meta": {
-      "fail": 0,
+      "fail": 1,
       "pass": 1,
       "skip": 0,
       "timeout": 0,
       "total": 23,
-      "unsupported": 22
+      "unsupported": 21
     },
     "intl-normative-optional": {
       "fail": 0,
@@ -1234,19 +1234,19 @@
     },
     "iterator-helpers": {
       "fail": 0,
-      "pass": 0,
+      "pass": 1,
       "skip": 0,
       "timeout": 0,
       "total": 567,
-      "unsupported": 567
+      "unsupported": 566
     },
     "iterator-includes": {
       "fail": 0,
-      "pass": 0,
+      "pass": 1,
       "skip": 0,
       "timeout": 0,
       "total": 44,
-      "unsupported": 44
+      "unsupported": 43
     },
     "iterator-sequencing": {
       "fail": 0,
@@ -1281,12 +1281,12 @@
       "unsupported": 22
     },
     "json-superset": {
-      "fail": 0,
+      "fail": 2,
       "pass": 0,
       "skip": 0,
       "timeout": 0,
       "total": 4,
-      "unsupported": 4
+      "unsupported": 2
     },
     "legacy-regexp": {
       "fail": 0,
@@ -1297,12 +1297,12 @@
       "unsupported": 26
     },
     "let": {
-      "fail": 0,
-      "pass": 1,
+      "fail": 1,
+      "pass": 7,
       "skip": 0,
       "timeout": 0,
       "total": 77,
-      "unsupported": 76
+      "unsupported": 69
     },
     "logical-assignment-operators": {
       "fail": 0,
@@ -1329,8 +1329,8 @@
       "unsupported": 4
     },
     "numeric-separator-literal": {
-      "fail": 0,
-      "pass": 64,
+      "fail": 56,
+      "pass": 8,
       "skip": 0,
       "timeout": 0,
       "total": 159,
@@ -1353,8 +1353,8 @@
       "unsupported": 111
     },
     "optional-catch-binding": {
-      "fail": 0,
-      "pass": 1,
+      "fail": 1,
+      "pass": 0,
       "skip": 0,
       "timeout": 0,
       "total": 5,
@@ -1370,19 +1370,19 @@
     },
     "promise-try": {
       "fail": 0,
-      "pass": 0,
+      "pass": 2,
       "skip": 0,
       "timeout": 0,
       "total": 12,
-      "unsupported": 12
+      "unsupported": 10
     },
     "promise-with-resolvers": {
       "fail": 0,
-      "pass": 0,
+      "pass": 2,
       "skip": 0,
       "timeout": 0,
       "total": 10,
-      "unsupported": 10
+      "unsupported": 8
     },
     "proxy-missing-checks": {
       "fail": 0,
@@ -1426,19 +1426,19 @@
     },
     "regexp-modifiers": {
       "fail": 0,
-      "pass": 83,
+      "pass": 160,
       "skip": 0,
       "timeout": 0,
       "total": 230,
-      "unsupported": 147
+      "unsupported": 70
     },
     "regexp-named-groups": {
       "fail": 0,
-      "pass": 54,
+      "pass": 56,
       "skip": 0,
       "timeout": 0,
       "total": 100,
-      "unsupported": 46
+      "unsupported": 44
     },
     "regexp-unicode-property-escapes": {
       "fail": 0,
@@ -1450,23 +1450,23 @@
     },
     "regexp-v-flag": {
       "fail": 0,
-      "pass": 50,
+      "pass": 51,
       "skip": 0,
       "timeout": 0,
       "total": 187,
-      "unsupported": 137
+      "unsupported": 136
     },
     "resizable-arraybuffer": {
-      "fail": 0,
-      "pass": 0,
+      "fail": 2,
+      "pass": 12,
       "skip": 0,
       "timeout": 0,
       "total": 465,
-      "unsupported": 465
+      "unsupported": 451
     },
     "rest-parameters": {
-      "fail": 0,
-      "pass": 96,
+      "fail": 9,
+      "pass": 87,
       "skip": 0,
       "timeout": 0,
       "total": 96,
@@ -1481,20 +1481,20 @@
       "unsupported": 193
     },
     "source-phase-imports": {
-      "fail": 0,
-      "pass": 147,
+      "fail": 82,
+      "pass": 69,
       "skip": 0,
       "timeout": 0,
       "total": 253,
-      "unsupported": 106
+      "unsupported": 102
     },
     "source-phase-imports-module-source": {
-      "fail": 0,
-      "pass": 63,
+      "fail": 28,
+      "pass": 39,
       "skip": 0,
       "timeout": 0,
       "total": 109,
-      "unsupported": 46
+      "unsupported": 42
     },
     "stable-array-sort": {
       "fail": 0,
@@ -1521,12 +1521,12 @@
       "unsupported": 54
     },
     "super": {
-      "fail": 0,
-      "pass": 4,
+      "fail": 2,
+      "pass": 3,
       "skip": 0,
       "timeout": 0,
       "total": 19,
-      "unsupported": 15
+      "unsupported": 14
     },
     "symbols-as-weakmap-keys": {
       "fail": 0,
@@ -1561,28 +1561,28 @@
       "unsupported": 277
     },
     "u180e": {
+      "fail": 2,
+      "pass": 3,
+      "skip": 0,
+      "timeout": 0,
+      "total": 25,
+      "unsupported": 20
+    },
+    "uint8array-base64": {
       "fail": 0,
       "pass": 1,
       "skip": 0,
       "timeout": 0,
-      "total": 25,
-      "unsupported": 24
-    },
-    "uint8array-base64": {
-      "fail": 0,
-      "pass": 0,
-      "skip": 0,
-      "timeout": 0,
       "total": 71,
-      "unsupported": 71
+      "unsupported": 70
     },
     "upsert": {
       "fail": 0,
-      "pass": 0,
+      "pass": 10,
       "skip": 0,
       "timeout": 0,
       "total": 72,
-      "unsupported": 72
+      "unsupported": 62
     },
     "well-formed-json-stringify": {
       "fail": 0,
@@ -1595,12 +1595,12 @@
   },
   "commit": "b363f29d3c43c626dc852744ad64a0b48a003693",
   "counts": {
-    "fail": 317,
-    "pass": 4438,
+    "fail": 1232,
+    "pass": 4833,
     "skip": 0,
     "timeout": 0,
     "total": 53869,
-    "unsupported": 49114
+    "unsupported": 47804
   },
   "mode": "full"
 }
