@@ -1,0 +1,84 @@
+package gots
+
+import (
+	"context"
+	"errors"
+	"runtime"
+	"testing"
+	"time"
+)
+
+func TestRuntimeLanguage(t *testing.T) {
+	r := New()
+	v, e := r.RunString(`function fib(n){ if(n < 2) return n; return fib(n-1)+fib(n-2); } fib(8);`)
+	if e != nil || v.Float64() != 21 {
+		t.Fatalf("%v %v", v, e)
+	}
+	p, e := r.Compile(`let x=1; x+2`)
+	if e != nil {
+		t.Fatal(e)
+	}
+	for range 2 {
+		v, e = r.Run(p)
+		if e != nil || v.Float64() != 3 {
+			t.Fatal(v, e)
+		}
+	}
+}
+func TestLimitsAndCancellation(t *testing.T) {
+	_, e := New(WithMaxSteps(20)).RunString(`while(true){}`)
+	if !errors.Is(e, ErrStepLimit) {
+		t.Fatalf("%v", e)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, e = New().RunStringContext(ctx, "1")
+	if !errors.Is(e, ErrCancelled) {
+		t.Fatalf("%v", e)
+	}
+	if _, e = New().Run(nil); !errors.Is(e, ErrNilProgram) {
+		t.Fatal(e)
+	}
+}
+func TestWeakMapSemantics(t *testing.T) {
+	r := New()
+	v, e := r.RunString(`let k={}; let m=new WeakMap(); m.set(k, undefined); m.has(k) && m.get(k) === undefined;`)
+	if e != nil || !v.Bool() {
+		t.Fatal(v, e)
+	}
+	_, e = r.RunString(`new WeakMap().set(1,2)`)
+	if e == nil {
+		t.Fatal("primitive key accepted")
+	}
+	v, e = r.RunString(`let a={}; let b={}; let m=new WeakMap([[a,1],[b,2]]); m.get(a)+m.get(b)`)
+	if e != nil || v.Float64() != 3 {
+		t.Fatal(v, e)
+	}
+}
+func TestWeakMapDoesNotKeepKeyAlive(t *testing.T) {
+	m := newWeakMapValue()
+	done := make(chan struct{})
+	func() {
+		k := NewObject()
+		runtime.AddCleanup(k.o.identity, func(ch chan struct{}) { close(ch) }, done)
+		if _, e := m.o.weakmap.set(k, Number(1)); e != nil {
+			t.Fatal(e)
+		}
+	}()
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		runtime.GC()
+		m.o.weakmap.cleanup()
+		select {
+		case <-done:
+			if len(m.o.weakmap.entries) != 0 {
+				t.Fatal("dead entry retained")
+			}
+			runtime.KeepAlive(m)
+			return
+		default:
+			time.Sleep(10 * time.Millisecond)
+		}
+	}
+	t.Fatal("key was retained")
+}
