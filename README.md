@@ -10,6 +10,10 @@ Go functions, and GC-aware `WeakMap` keys built with Go's `weak` package.
 WeakMap also accepts non-registered Symbols as weak keys and implements the
 proposal methods `getOrInsert` and `getOrInsertComputed`; registered
 `Symbol.for` values are rejected as weak keys.
+Lexical declarations support `let`/`const` declaration lists, reject duplicate
+names within a lexical declaration, and require `const` initializers. Full
+Test262 `let` coverage additionally depends on out-of-MVP modules, generators,
+destructuring, `for`/`for-in`/`for-of`, `switch`, `try`, and `eval` semantics.
 
 ```go
 r := gots.New(gots.WithMaxSteps(10_000))

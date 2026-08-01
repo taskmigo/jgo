@@ -29,19 +29,38 @@ func (p *parser) statement() (stmt, error) {
 	}
 	if p.match(TokLet, TokVar, TokConst) {
 		k := p.prev()
-		n, e := p.need(TokIdent, "expected variable name")
-		if e != nil {
-			return nil, e
-		}
-		var v expr = &literalExpr{base: base{n.Span}, value: Undefined()}
-		if p.match(TokAssign) {
-			v, e = p.expression()
+		var declarations []*varStmt
+		declared := map[string]struct{}{}
+		for {
+			n, e := p.need(TokIdent, "expected variable name")
 			if e != nil {
 				return nil, e
 			}
+			if k.Type != TokVar {
+				if _, exists := declared[n.Literal]; exists {
+					return nil, p.err(n, "duplicate lexical declaration")
+				}
+				declared[n.Literal] = struct{}{}
+			}
+			var v expr = &literalExpr{base: base{n.Span}, value: Undefined()}
+			if p.match(TokAssign) {
+				v, e = p.assign()
+				if e != nil {
+					return nil, e
+				}
+			} else if k.Type == TokConst {
+				return nil, p.err(n, "const declaration requires an initializer")
+			}
+			declarations = append(declarations, &varStmt{base: base{k.Span}, name: n.Literal, value: v, constant: k.Type == TokConst})
+			if !p.match(TokComma) {
+				break
+			}
 		}
 		p.match(TokSemi)
-		return &varStmt{base: base{k.Span}, name: n.Literal, value: v, constant: k.Type == TokConst}, nil
+		if len(declarations) == 1 {
+			return declarations[0], nil
+		}
+		return &varsStmt{base: base{k.Span}, declarations: declarations}, nil
 	}
 	if p.match(TokFunction) {
 		start := p.prev()

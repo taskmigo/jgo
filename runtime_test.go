@@ -33,6 +33,20 @@ func TestTypeofAndNumericGlobals(t *testing.T) {
 		t.Fatalf("value=%q error=%v", v.String(), err)
 	}
 }
+
+func TestMultipleLexicalDeclarations(t *testing.T) {
+	r := New()
+	v, err := r.RunString(`let a = 1, b = a + 2; const c = b + 3; a + b + c`)
+	if err != nil || v.Float64() != 10 {
+		t.Fatalf("value=%v error=%v", v, err)
+	}
+	if _, err := r.Compile(`const missing;`); err == nil {
+		t.Fatal("const without initializer compiled")
+	}
+	if _, err := r.Compile(`let duplicate, duplicate;`); err == nil {
+		t.Fatal("duplicate let declaration compiled")
+	}
+}
 func TestLimitsAndCancellation(t *testing.T) {
 	_, e := New(WithMaxSteps(20)).RunString(`while(true){}`)
 	if !errors.Is(e, ErrStepLimit) {

@@ -112,6 +112,13 @@ type varStmt struct {
 
 func (*varStmt) stmtNode() {}
 
+type varsStmt struct {
+	base
+	declarations []*varStmt
+}
+
+func (*varsStmt) stmtNode() {}
+
 type blockStmt struct {
 	base
 	body []stmt

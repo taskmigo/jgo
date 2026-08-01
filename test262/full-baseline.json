@@ -1090,11 +1090,11 @@
     },
     "explicit-resource-management": {
       "fail": 20,
-      "pass": 49,
+      "pass": 50,
       "skip": 0,
       "timeout": 0,
       "total": 483,
-      "unsupported": 414
+      "unsupported": 413
     },
     "exponentiation": {
       "fail": 0,
@@ -1369,12 +1369,12 @@
       "unsupported": 156
     },
     "path:annexB/language": {
-      "fail": 9,
-      "pass": 64,
+      "fail": 19,
+      "pass": 66,
       "skip": 0,
       "timeout": 0,
       "total": 819,
-      "unsupported": 746
+      "unsupported": 734
     },
     "path:built-ins/Array": {
       "fail": 13,
@@ -2729,12 +2729,12 @@
       "unsupported": 118
     },
     "path:language/asi": {
-      "fail": 8,
-      "pass": 54,
+      "fail": 9,
+      "pass": 58,
       "skip": 0,
       "timeout": 0,
       "total": 102,
-      "unsupported": 40
+      "unsupported": 35
     },
     "path:language/block-scope": {
       "fail": 44,
@@ -2906,15 +2906,15 @@
     },
     "path:language/statementList": {
       "fail": 0,
-      "pass": 6,
+      "pass": 8,
       "skip": 0,
       "timeout": 0,
       "total": 42,
-      "unsupported": 36
+      "unsupported": 34
     },
     "path:language/statements": {
-      "fail": 156,
-      "pass": 332,
+      "fail": 173,
+      "pass": 315,
       "skip": 0,
       "timeout": 0,
       "total": 1437,
@@ -2946,11 +2946,11 @@
     },
     "path:staging/sm": {
       "fail": 11,
-      "pass": 27,
+      "pass": 30,
       "skip": 0,
       "timeout": 0,
       "total": 1192,
-      "unsupported": 1154
+      "unsupported": 1151
     },
     "path:staging/source-phase-imports": {
       "fail": 2,
@@ -3195,18 +3195,18 @@
   },
   "commit": "b363f29d3c43c626dc852744ad64a0b48a003693",
   "counts": {
-    "fail": 1293,
-    "pass": 5027,
+    "fail": 1321,
+    "pass": 5022,
     "skip": 0,
     "timeout": 0,
     "total": 53869,
-    "unsupported": 47549
+    "unsupported": 47526
   },
   "coverage": {
-    "coveragePercent": 11.73216506710724,
-    "coveredPassPercent": 79.54113924050633,
-    "coveredTests": 6320,
-    "overallPassPercent": 9.331897751953814
+    "coveragePercent": 11.774861237446398,
+    "coveredPassPercent": 79.1738924798991,
+    "coveredTests": 6343,
+    "overallPassPercent": 9.322615975793127
   },
   "ecmaVersion": "ECMAScript 2025 (ES16), plus later features present in the pinned Test262 commit",
   "mode": "full"

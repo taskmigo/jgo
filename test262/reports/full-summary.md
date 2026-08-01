@@ -15,13 +15,13 @@ test requires. A `pass` includes valid negative tests, so this is runner
 coverage—not a claim of full ECMAScript feature support.
 
 **ECMA target:** ECMAScript 2025 (ES16), plus later features present in the pinned Test262 commit<br>
-**Coverage:** 11.73% (6320/53869 tests reached execution)<br>
-**Overall pass:** 9.33% (5027/53869)<br>
-**Pass among covered:** 79.54% (5027/6320)
+**Coverage:** 11.77% (6343/53869 tests reached execution)<br>
+**Overall pass:** 9.32% (5022/53869)<br>
+**Pass among covered:** 79.17% (5022/6343)
 
 | pass | fail | skip | unsupported | timeout | total |
 |---:|---:|---:|---:|---:|---:|
-| 5027 | 1293 | 0 | 47549 | 0 | 53869 |
+| 5022 | 1321 | 0 | 47526 | 0 | 53869 |
 
 ### By feature
 
@@ -163,7 +163,7 @@ coverage—not a claim of full ECMAScript feature support.
 | dynamic-import | 191 | 199 | 621 | 0 | 1011 |
 | error-cause | 0 | 0 | 5 | 0 | 5 |
 | error-stack-accessor | 0 | 0 | 35 | 0 | 35 |
-| explicit-resource-management | 49 | 20 | 414 | 0 | 483 |
+| explicit-resource-management | 50 | 20 | 413 | 0 | 483 |
 | exponentiation | 14 | 0 | 90 | 0 | 104 |
 | export-star-as-namespace-from-module | 0 | 0 | 19 | 0 | 19 |
 | for-in-order | 0 | 0 | 9 | 0 | 9 |
@@ -198,7 +198,7 @@ coverage—not a claim of full ECMAScript feature support.
 | optional-catch-binding | 0 | 1 | 4 | 0 | 5 |
 | optional-chaining | 26 | 0 | 30 | 0 | 56 |
 | path:annexB/built-ins | 0 | 0 | 156 | 0 | 156 |
-| path:annexB/language | 64 | 9 | 746 | 0 | 819 |
+| path:annexB/language | 66 | 19 | 734 | 0 | 819 |
 | path:built-ins/Array | 44 | 13 | 2410 | 0 | 2467 |
 | path:built-ins/ArrayBuffer | 6 | 0 | 36 | 0 | 42 |
 | path:built-ins/AsyncFunction | 0 | 0 | 14 | 0 | 14 |
@@ -368,7 +368,7 @@ coverage—not a claim of full ECMAScript feature support.
 | path:intl402/supportedLocalesOf-throws-if-element-not-string-or-object.js | 0 | 0 | 1 | 0 | 1 |
 | path:intl402/supportedLocalesOf-unicode-extensions-ignored.js | 0 | 0 | 1 | 0 | 1 |
 | path:language/arguments-object | 3 | 3 | 118 | 0 | 124 |
-| path:language/asi | 54 | 8 | 40 | 0 | 102 |
+| path:language/asi | 58 | 9 | 35 | 0 | 102 |
 | path:language/block-scope | 22 | 44 | 28 | 0 | 94 |
 | path:language/comments | 16 | 0 | 4 | 0 | 20 |
 | path:language/computed-property-names | 4 | 0 | 39 | 0 | 43 |
@@ -390,12 +390,12 @@ coverage—not a claim of full ECMAScript feature support.
 | path:language/reserved-words | 14 | 0 | 13 | 0 | 27 |
 | path:language/rest-parameters | 1 | 0 | 10 | 0 | 11 |
 | path:language/source-text | 0 | 0 | 1 | 0 | 1 |
-| path:language/statementList | 6 | 0 | 36 | 0 | 42 |
-| path:language/statements | 332 | 156 | 949 | 0 | 1437 |
+| path:language/statementList | 8 | 0 | 34 | 0 | 42 |
+| path:language/statements | 315 | 173 | 949 | 0 | 1437 |
 | path:language/types | 37 | 3 | 69 | 0 | 109 |
 | path:language/white-space | 17 | 0 | 48 | 0 | 65 |
 | path:staging/built-ins | 0 | 0 | 1 | 0 | 1 |
-| path:staging/sm | 27 | 11 | 1154 | 0 | 1192 |
+| path:staging/sm | 30 | 11 | 1151 | 0 | 1192 |
 | path:staging/source-phase-imports | 0 | 2 | 0 | 0 | 2 |
 | path:staging/top-level-await | 0 | 3 | 0 | 0 | 3 |
 | promise-try | 2 | 0 | 10 | 0 | 12 |

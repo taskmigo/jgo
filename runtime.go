@@ -225,6 +225,16 @@ func (r *Runtime) evalStmt(s stmt, e *environment) (Value, bool, error) {
 			e.define(n.name, v, n.constant)
 		}
 		return v, false, x
+	case *varsStmt:
+		out := Undefined()
+		for _, declaration := range n.declarations {
+			v, _, x := r.evalStmt(declaration, e)
+			if x != nil {
+				return Undefined(), false, x
+			}
+			out = v
+		}
+		return out, false, nil
 	case *functionStmt:
 		v := r.makeFunction(n.fn, e)
 		e.define(n.name, v, true)
