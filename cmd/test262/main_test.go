@@ -5,8 +5,23 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 )
+
+func TestRenderCoverageIsDeterministic(t *testing.T) {
+	r := report{Commit: "abc", ECMAVersion: "ECMAScript 2025", Mode: "full", Counts: counts{Pass: 1, Unsupported: 1, Total: 2}, ByFeature: map[string]counts{"z": {Unsupported: 1, Total: 1}, "a": {Pass: 1, Total: 1}}}
+	r.Coverage = calculateCoverage(r.Counts)
+	got := renderCoverage(r, "2026-08-01")
+	for _, want := range []string{"# Test262 coverage report", "**Report date:** 2026-08-01", "**Pinned Test262 commit:** `abc`", "**Coverage:** 50.00% (1/2", "| a | 1 |", "| z | 0 |"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("report missing %q", want)
+		}
+	}
+	if strings.Index(got, "| a |") > strings.Index(got, "| z |") {
+		t.Error("features are not sorted")
+	}
+}
 
 func TestFrontmatter(t *testing.T) {
 	m, body, err := frontmatter("// copyright\n/*---\nfeatures:\n - let\nflags: [onlyStrict]\nincludes: [compareArray.js]\nnegative:\n  phase: parse\n  type: SyntaxError\n---*/\nlet = 1")

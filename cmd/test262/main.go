@@ -45,6 +45,14 @@ type report struct {
 	Regressions []string          `json:"regressions,omitempty"`
 	Coverage    coverage          `json:"coverage"`
 }
+type baselineSnapshot struct {
+	Commit      string            `json:"commit"`
+	ECMAVersion string            `json:"ecmaVersion"`
+	Mode        string            `json:"mode"`
+	Counts      counts            `json:"counts"`
+	ByFeature   map[string]counts `json:"byFeature"`
+	Coverage    coverage          `json:"coverage"`
+}
 type coverage struct {
 	CoveredTests       int     `json:"coveredTests"`
 	CoveragePercent    float64 `json:"coveragePercent"`
@@ -77,9 +85,12 @@ func main() {
 	jsonOut := flag.String("json", "test262-report.json", "JSON report")
 	junitOut := flag.String("junit", "test262-report.xml", "JUnit report")
 	summary := flag.String("summary", "", "summary output (defaults to GITHUB_STEP_SUMMARY)")
+	coverageOut := flag.String("coverage", "", "write the canonical coverage report")
+	reportDate := flag.String("report-date", "", "report date (YYYY-MM-DD; required with -coverage)")
 	steps := flag.Uint64("steps", 100000, "steps per test")
 	timeout := flag.Duration("timeout", 2*time.Second, "timeout per test")
 	baseline := flag.String("baseline", "", "full-run baseline used to reject coverage regressions")
+	baselineOut := flag.String("baseline-out", "", "write a deterministic full-run baseline without per-test results")
 	flag.Parse()
 	b, err := os.ReadFile(*selection)
 	fatal(err)
@@ -129,10 +140,25 @@ func main() {
 		rep.Regressions = compareBaseline(*baseline, rep)
 	}
 	writeJSON(*jsonOut, rep)
+	if *baselineOut != "" {
+		writeCanonicalJSON(*baselineOut, baselineSnapshot{
+			Commit: rep.Commit, ECMAVersion: rep.ECMAVersion, Mode: rep.Mode,
+			Counts: rep.Counts, ByFeature: rep.ByFeature, Coverage: rep.Coverage,
+		})
+	}
 	xb, err := xml.MarshalIndent(js, "", "  ")
 	fatal(err)
 	fatal(os.WriteFile(*junitOut, append([]byte(xml.Header), xb...), 0644))
 	out := renderSummary(rep)
+	if *coverageOut != "" {
+		if *reportDate == "" {
+			fatal(errors.New("-report-date is required with -coverage"))
+		}
+		if _, err := time.Parse("2006-01-02", *reportDate); err != nil {
+			fatal(fmt.Errorf("invalid -report-date: %w", err))
+		}
+		fatal(os.WriteFile(*coverageOut, []byte(renderCoverage(rep, *reportDate)), 0644))
+	}
 	dest := *summary
 	if dest == "" {
 		dest = os.Getenv("GITHUB_STEP_SUMMARY")
@@ -487,10 +513,36 @@ func renderSummary(r report) string {
 	}
 	return b.String()
 }
+
+// renderCoverage produces the repository's canonical report. Its only
+// time-varying value is supplied by the caller, so identical results and dates
+// produce byte-for-byte identical output on every machine.
+func renderCoverage(r report, reportDate string) string {
+	b := &strings.Builder{}
+	fmt.Fprintln(b, "# Test262 coverage report")
+	fmt.Fprintf(b, "\n**Report date:** %s  \n", reportDate)
+	fmt.Fprintf(b, "**Pinned Test262 commit:** `%s`  \n", r.Commit)
+	fmt.Fprintf(b, "**ECMA target:** %s\n\n", r.ECMAVersion)
+	fmt.Fprintln(b, "This report is generated from the complete pinned Test262 suite. **Test262")
+	fmt.Fprintln(b, "coverage** is the percentage of all tests that reached execution (pass, fail, or")
+	fmt.Fprintln(b, "timeout); unsupported tests are excluded. **Overall pass rate** is passes divided")
+	fmt.Fprintln(b, "by every test in the suite, including unsupported tests. These runner metrics do")
+	fmt.Fprintln(b, "not by themselves claim complete ECMAScript conformance.")
+	fmt.Fprintln(b)
+	fmt.Fprint(b, renderSummary(r))
+	return b.String()
+}
 func writeJSON(path string, v any) {
 	b, e := json.MarshalIndent(v, "", "  ")
 	fatal(e)
 	fatal(os.WriteFile(path, b, 0644))
+}
+func writeCanonicalJSON(path string, v any) {
+	b, err := json.Marshal(v)
+	fatal(err)
+	var canonical any
+	fatal(json.Unmarshal(b, &canonical))
+	writeJSON(path, canonical)
 }
 func fatal(e error) {
 	if e != nil {

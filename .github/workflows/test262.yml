@@ -24,8 +24,14 @@ jobs:
           go run ./cmd/test262 -all -test262 test262-upstream
           -baseline test262/full-baseline.json -timeout 100ms
           -json test262-report.json -junit test262-report.xml
+          -baseline-out test262/full-baseline.json
+          -coverage COVERAGE.md -report-date 2026-08-01
+      - name: Verify committed coverage report and baseline
+        run: git diff --exit-code -- COVERAGE.md test262/full-baseline.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: test262-report
-          path: test262-report.*
+          path: |
+            test262/full-baseline.json
+            test262-report.*
