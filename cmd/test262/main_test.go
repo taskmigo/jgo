@@ -26,17 +26,17 @@ func TestRenderCoverageIsDeterministic(t *testing.T) {
 ` + "**Report date:** 2026-08-01  \n" + "**Pinned Test262 commit:** `abc`  \n" + `**ECMA target:** ECMAScript 2025
 
 This report is generated from the complete pinned Test262 suite. **Test262
-coverage** is the percentage of all tests that reached execution (pass, fail, or
-timeout); unsupported tests are excluded. **Overall pass rate** is passes divided
-by every test in the suite, including unsupported tests. These runner metrics do
-not by themselves claim complete ECMAScript conformance.
+execution coverage** is the percentage of tests that reached execution (pass,
+fail, or timeout); unsupported tests are excluded. **Test262 overall pass rate**
+is passes divided by every test in the suite, including unsupported tests. These
+runner metrics do not by themselves claim complete ECMAScript conformance.
 
 ## Test262 abc (full)
 
 **ECMA target:** ECMAScript 2025<br>
-**Coverage:** 66.67% (4/6 tests reached execution)<br>
-**Overall pass:** 33.33% (2/6)<br>
-**Pass among covered:** 50.00% (2/4)
+**Test262 execution coverage:** 66.67% (4/6 tests reached execution)<br>
+**Test262 overall pass rate:** 33.33% (2/6)<br>
+**Pass rate among executed tests:** 50.00% (2/4)
 
 | pass | fail | skip | unsupported | timeout | total |
 |---:|---:|---:|---:|---:|---:|
@@ -57,32 +57,93 @@ not by themselves claim complete ECMAScript conformance.
 	}
 }
 
-func TestRenderChangeSummaryShowsOnlyChanges(t *testing.T) {
+func TestRenderChangeSummaryShowsOnlyImprovements(t *testing.T) {
 	previous := baselineSnapshot{
 		Counts:    counts{Pass: 10, Fail: 2, Unsupported: 8, Total: 20},
-		ByFeature: map[string]counts{"a": {Pass: 5, Fail: 1, Total: 6}, "b": {Pass: 3, Total: 3}, "unchanged": {Pass: 1, Total: 1}},
+		ByFeature: map[string]counts{"a": {Pass: 5, Unsupported: 1, Total: 6}, "unchanged": {Pass: 1, Total: 1}},
 	}
 	previous.Coverage = calculateCoverage(previous.Counts)
 	current := report{
-		Counts:    counts{Pass: 11, Fail: 1, Unsupported: 8, Total: 20},
-		ByFeature: map[string]counts{"a": {Pass: 6, Total: 6}, "b": {Pass: 2, Fail: 1, Total: 3}, "unchanged": {Pass: 1, Total: 1}},
+		Counts:    counts{Pass: 11, Fail: 2, Unsupported: 7, Total: 20},
+		ByFeature: map[string]counts{"a": {Pass: 6, Total: 6}, "unchanged": {Pass: 1, Total: 1}},
 	}
 	current.Coverage = calculateCoverage(current.Counts)
 
 	want := `## Test262 changes
 
+✅ **No regression detected compared with main.**
+
 Only changed metrics are shown. 🟢 improvement · 🔴 regression
 
 | Scope | Metric | Before | After | Change |
 |---|---|---:|---:|---:|
-| Overall | Overall pass | 50.00% | 55.00% | 🟢 ▲ +5.00 pp |
-| Overall | Pass among covered | 83.33% | 91.67% | 🟢 ▲ +8.33 pp |
+| Overall | Test262 execution coverage | 60.00% | 65.00% | 🟢 ▲ +5.00 pp |
+| Overall | Test262 overall pass rate | 50.00% | 55.00% | 🟢 ▲ +5.00 pp |
+| Overall | Pass rate among executed tests | 83.33% | 84.62% | 🟢 ▲ +1.28 pp |
 | Overall | Pass | 10 | 11 | 🟢 ▲ +1 |
-| Overall | Fail | 2 | 1 | 🟢 ▼ -1 |
+| Overall | Unsupported | 8 | 7 | 🟢 ▼ -1 |
 | a | Pass | 5 | 6 | 🟢 ▲ +1 |
-| a | Fail | 1 | 0 | 🟢 ▼ -1 |
+| a | Unsupported | 1 | 0 | 🟢 ▼ -1 |
+`
+	if got := renderChangeSummary(previous, current); got != want {
+		t.Fatalf("renderChangeSummary() mismatch\n--- got ---\n%s\n--- want ---\n%s", got, want)
+	}
+}
+
+func TestRenderChangeSummaryShowsRegression(t *testing.T) {
+	previous := baselineSnapshot{
+		Counts:    counts{Pass: 10, Fail: 2, Unsupported: 8, Total: 20},
+		ByFeature: map[string]counts{"b": {Pass: 3, Total: 3}, "unchanged": {Pass: 1, Total: 1}},
+	}
+	previous.Coverage = calculateCoverage(previous.Counts)
+	current := report{
+		Counts:    counts{Pass: 9, Fail: 3, Unsupported: 8, Total: 20},
+		ByFeature: map[string]counts{"b": {Pass: 2, Fail: 1, Total: 3}, "unchanged": {Pass: 1, Total: 1}},
+	}
+	current.Coverage = calculateCoverage(current.Counts)
+
+	want := `## Test262 changes
+
+❌ **Regression detected compared with main.**
+
+Only changed metrics are shown. 🟢 improvement · 🔴 regression
+
+| Scope | Metric | Before | After | Change |
+|---|---|---:|---:|---:|
+| Overall | Test262 overall pass rate | 50.00% | 45.00% | 🔴 ▼ -5.00 pp |
+| Overall | Pass rate among executed tests | 83.33% | 75.00% | 🔴 ▼ -8.33 pp |
+| Overall | Pass | 10 | 9 | 🔴 ▼ -1 |
+| Overall | Fail | 2 | 3 | 🔴 ▲ +1 |
 | b | Pass | 3 | 2 | 🔴 ▼ -1 |
 | b | Fail | 0 | 1 | 🔴 ▲ +1 |
+`
+	if got := renderChangeSummary(previous, current); got != want {
+		t.Fatalf("renderChangeSummary() mismatch\n--- got ---\n%s\n--- want ---\n%s", got, want)
+	}
+}
+
+func TestRenderChangeSummaryTreatsPinnedCommitChangeAsRegression(t *testing.T) {
+	previous := baselineSnapshot{
+		Commit:    "main-commit",
+		Counts:    counts{Pass: 1, Total: 1},
+		ByFeature: map[string]counts{"a": {Pass: 1, Total: 1}},
+	}
+	previous.Coverage = calculateCoverage(previous.Counts)
+	current := report{
+		Commit:    "pr-commit",
+		Counts:    previous.Counts,
+		ByFeature: previous.ByFeature,
+		Coverage:  previous.Coverage,
+	}
+	want := `## Test262 changes
+
+❌ **Regression detected compared with main.**
+
+Only changed metrics are shown. 🟢 improvement · 🔴 regression
+
+| Scope | Metric | Before | After | Change |
+|---|---|---:|---:|---:|
+| Metadata | Pinned Test262 commit | ` + "`main-commit`" + ` | ` + "`pr-commit`" + ` | 🔴 changed |
 `
 	if got := renderChangeSummary(previous, current); got != want {
 		t.Fatalf("renderChangeSummary() mismatch\n--- got ---\n%s\n--- want ---\n%s", got, want)
@@ -96,7 +157,7 @@ func TestRenderChangeSummaryWhenNothingChanged(t *testing.T) {
 	}
 	previous.Coverage = calculateCoverage(previous.Counts)
 	current := report{Counts: previous.Counts, ByFeature: previous.ByFeature, Coverage: previous.Coverage}
-	want := "## Test262 changes\n\n✅ No Test262 coverage changes compared with the committed baseline.\n"
+	want := "## Test262 changes\n\n✅ No Test262 result changes compared with main.\n"
 	if got := renderChangeSummary(previous, current); got != want {
 		t.Fatalf("renderChangeSummary() = %q, want %q", got, want)
 	}

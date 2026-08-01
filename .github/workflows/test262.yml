@@ -14,6 +14,7 @@ jobs:
       - name: Run complete pinned Test262 suite
         run: >-
           ./scripts/update-test262-coverage.sh
+          --baseline-ref main
           -json test262-report.json -junit test262-report.xml
       - name: Verify committed coverage report and baseline
         if: always()

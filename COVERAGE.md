@@ -5,17 +5,17 @@
 **ECMA target:** ECMAScript 2025 (ES16), plus later features present in the pinned Test262 commit
 
 This report is generated from the complete pinned Test262 suite. **Test262
-coverage** is the percentage of all tests that reached execution (pass, fail, or
-timeout); unsupported tests are excluded. **Overall pass rate** is passes divided
-by every test in the suite, including unsupported tests. These runner metrics do
-not by themselves claim complete ECMAScript conformance.
+execution coverage** is the percentage of tests that reached execution (pass,
+fail, or timeout); unsupported tests are excluded. **Test262 overall pass rate**
+is passes divided by every test in the suite, including unsupported tests. These
+runner metrics do not by themselves claim complete ECMAScript conformance.
 
 ## Test262 b363f29d3c43c626dc852744ad64a0b48a003693 (full)
 
 **ECMA target:** ECMAScript 2025 (ES16), plus later features present in the pinned Test262 commit<br>
-**Coverage:** 12.45% (6704/53869 tests reached execution)<br>
-**Overall pass:** 9.58% (5158/53869)<br>
-**Pass among covered:** 76.94% (5158/6704)
+**Test262 execution coverage:** 12.45% (6704/53869 tests reached execution)<br>
+**Test262 overall pass rate:** 9.58% (5158/53869)<br>
+**Pass rate among executed tests:** 76.94% (5158/6704)
 
 | pass | fail | skip | unsupported | timeout | total |
 |---:|---:|---:|---:|---:|---:|

@@ -249,6 +249,9 @@ func compareBaselineSnapshot(expected baselineSnapshot, actual report) []string 
 	if actual.Counts.Fail > expected.Counts.Fail {
 		problems = append(problems, fmt.Sprintf("fail count increased: expected at most %d, got %d", expected.Counts.Fail, actual.Counts.Fail))
 	}
+	if actual.Counts.Skip > expected.Counts.Skip {
+		problems = append(problems, fmt.Sprintf("skip count increased: expected at most %d, got %d", expected.Counts.Skip, actual.Counts.Skip))
+	}
 	if actual.Counts.Unsupported > expected.Counts.Unsupported {
 		problems = append(problems, fmt.Sprintf("unsupported count increased: expected at most %d, got %d", expected.Counts.Unsupported, actual.Counts.Unsupported))
 	}
@@ -261,8 +264,8 @@ func compareBaselineSnapshot(expected baselineSnapshot, actual report) []string 
 			problems = append(problems, "feature disappeared: "+feature)
 			continue
 		}
-		if got.Total != want.Total || got.Pass < want.Pass || got.Fail > want.Fail || got.Unsupported > want.Unsupported || got.Timeout > want.Timeout {
-			problems = append(problems, fmt.Sprintf("feature regressed: %s (want pass>=%d fail<=%d unsupported<=%d timeout<=%d total=%d; got %+v)", feature, want.Pass, want.Fail, want.Unsupported, want.Timeout, want.Total, got))
+		if got.Total != want.Total || got.Pass < want.Pass || got.Fail > want.Fail || got.Skip > want.Skip || got.Unsupported > want.Unsupported || got.Timeout > want.Timeout {
+			problems = append(problems, fmt.Sprintf("feature regressed: %s (want pass>=%d fail<=%d skip<=%d unsupported<=%d timeout<=%d total=%d; got %+v)", feature, want.Pass, want.Fail, want.Skip, want.Unsupported, want.Timeout, want.Total, got))
 		}
 	}
 	return problems
@@ -575,7 +578,7 @@ func calculateCoverage(c counts) coverage {
 func renderSummary(r report) string {
 	c := r.Counts
 	b := &strings.Builder{}
-	fmt.Fprintf(b, "## Test262 %s (%s)\n\n**ECMA target:** %s<br>\n**Coverage:** %.2f%% (%d/%d tests reached execution)<br>\n**Overall pass:** %.2f%% (%d/%d)<br>\n**Pass among covered:** %.2f%% (%d/%d)\n\n| pass | fail | skip | unsupported | timeout | total |\n|---:|---:|---:|---:|---:|---:|\n| %d | %d | %d | %d | %d | %d |\n\n### By feature\n\n| feature | pass | fail | unsupported | timeout | total |\n|---|---:|---:|---:|---:|---:|\n", r.Commit, r.Mode, r.ECMAVersion, r.Coverage.CoveragePercent, r.Coverage.CoveredTests, c.Total, r.Coverage.OverallPassPercent, c.Pass, c.Total, r.Coverage.CoveredPassPercent, c.Pass, r.Coverage.CoveredTests, c.Pass, c.Fail, c.Skip, c.Unsupported, c.Timeout, c.Total)
+	fmt.Fprintf(b, "## Test262 %s (%s)\n\n**ECMA target:** %s<br>\n**Test262 execution coverage:** %.2f%% (%d/%d tests reached execution)<br>\n**Test262 overall pass rate:** %.2f%% (%d/%d)<br>\n**Pass rate among executed tests:** %.2f%% (%d/%d)\n\n| pass | fail | skip | unsupported | timeout | total |\n|---:|---:|---:|---:|---:|---:|\n| %d | %d | %d | %d | %d | %d |\n\n### By feature\n\n| feature | pass | fail | unsupported | timeout | total |\n|---|---:|---:|---:|---:|---:|\n", r.Commit, r.Mode, r.ECMAVersion, r.Coverage.CoveragePercent, r.Coverage.CoveredTests, c.Total, r.Coverage.OverallPassPercent, c.Pass, c.Total, r.Coverage.CoveredPassPercent, c.Pass, r.Coverage.CoveredTests, c.Pass, c.Fail, c.Skip, c.Unsupported, c.Timeout, c.Total)
 	keys := make([]string, 0, len(r.ByFeature))
 	for k := range r.ByFeature {
 		keys = append(keys, k)
@@ -589,9 +592,10 @@ func renderSummary(r report) string {
 }
 
 type countMetric struct {
-	name          string
-	lowerIsBetter bool
-	value         func(counts) int
+	name               string
+	lowerIsBetter      bool
+	regressionOnChange bool
+	value              func(counts) int
 }
 
 var summaryCountMetrics = []countMetric{
@@ -600,7 +604,7 @@ var summaryCountMetrics = []countMetric{
 	{name: "Skip", lowerIsBetter: true, value: func(c counts) int { return c.Skip }},
 	{name: "Unsupported", lowerIsBetter: true, value: func(c counts) int { return c.Unsupported }},
 	{name: "Timeout", lowerIsBetter: true, value: func(c counts) int { return c.Timeout }},
-	{name: "Total", value: func(c counts) int { return c.Total }},
+	{name: "Total", regressionOnChange: true, value: func(c counts) int { return c.Total }},
 }
 
 // renderChangeSummary keeps the GitHub Step Summary focused on differences
@@ -608,6 +612,10 @@ var summaryCountMetrics = []countMetric{
 func renderChangeSummary(previous baselineSnapshot, current report) string {
 	rows := &strings.Builder{}
 	changed := false
+	if previous.Commit != current.Commit {
+		changed = true
+		fmt.Fprintf(rows, "| Metadata | Pinned Test262 commit | `%s` | `%s` | 🔴 changed |\n", previous.Commit, current.Commit)
+	}
 	addPercent := func(metric string, before, after float64) {
 		if before == after {
 			return
@@ -622,13 +630,13 @@ func renderChangeSummary(previous baselineSnapshot, current report) string {
 				continue
 			}
 			changed = true
-			fmt.Fprintf(rows, "| %s | %s | %d | %d | %s |\n", scope, metric.name, oldValue, newValue, formatIntChange(newValue-oldValue, metric.lowerIsBetter))
+			fmt.Fprintf(rows, "| %s | %s | %d | %d | %s |\n", scope, metric.name, oldValue, newValue, formatIntChange(newValue-oldValue, metric.lowerIsBetter, metric.regressionOnChange))
 		}
 	}
 
-	addPercent("Coverage", previous.Coverage.CoveragePercent, current.Coverage.CoveragePercent)
-	addPercent("Overall pass", previous.Coverage.OverallPassPercent, current.Coverage.OverallPassPercent)
-	addPercent("Pass among covered", previous.Coverage.CoveredPassPercent, current.Coverage.CoveredPassPercent)
+	addPercent("Test262 execution coverage", previous.Coverage.CoveragePercent, current.Coverage.CoveragePercent)
+	addPercent("Test262 overall pass rate", previous.Coverage.OverallPassPercent, current.Coverage.OverallPassPercent)
+	addPercent("Pass rate among executed tests", previous.Coverage.CoveredPassPercent, current.Coverage.CoveredPassPercent)
 	addCounts("Overall", previous.Counts, current.Counts)
 
 	features := make(map[string]struct{}, len(previous.ByFeature)+len(current.ByFeature))
@@ -647,11 +655,18 @@ func renderChangeSummary(previous baselineSnapshot, current report) string {
 		addCounts(strings.ReplaceAll(feature, "|", "\\|"), previous.ByFeature[feature], current.ByFeature[feature])
 	}
 
-	if !changed {
-		return "## Test262 changes\n\n✅ No Test262 coverage changes compared with the committed baseline.\n"
+	regressions := compareBaselineSnapshot(previous, current)
+	if !changed && len(regressions) == 0 {
+		return "## Test262 changes\n\n✅ No Test262 result changes compared with main.\n"
 	}
 	b := &strings.Builder{}
 	fmt.Fprintln(b, "## Test262 changes")
+	fmt.Fprintln(b)
+	if len(regressions) > 0 {
+		fmt.Fprintln(b, "❌ **Regression detected compared with main.**")
+	} else {
+		fmt.Fprintln(b, "✅ **No regression detected compared with main.**")
+	}
 	fmt.Fprintln(b)
 	fmt.Fprintln(b, "Only changed metrics are shown. 🟢 improvement · 🔴 regression")
 	fmt.Fprintln(b)
@@ -661,16 +676,16 @@ func renderChangeSummary(previous baselineSnapshot, current report) string {
 	return b.String()
 }
 
-func formatIntChange(delta int, lowerIsBetter bool) string {
-	marker := changeMarker(float64(delta), lowerIsBetter)
+func formatIntChange(delta int, lowerIsBetter, regressionOnChange bool) string {
+	marker := changeMarker(float64(delta), lowerIsBetter, regressionOnChange)
 	return fmt.Sprintf("%s %+.0f", marker, float64(delta))
 }
 
 func formatFloatChange(delta float64, lowerIsBetter bool) string {
-	return fmt.Sprintf("%s %+.2f pp", changeMarker(delta, lowerIsBetter), delta)
+	return fmt.Sprintf("%s %+.2f pp", changeMarker(delta, lowerIsBetter, false), delta)
 }
 
-func changeMarker(delta float64, lowerIsBetter bool) string {
+func changeMarker(delta float64, lowerIsBetter, regressionOnChange bool) string {
 	improved := delta > 0
 	if lowerIsBetter {
 		improved = delta < 0
@@ -679,7 +694,7 @@ func changeMarker(delta float64, lowerIsBetter bool) string {
 	if delta < 0 {
 		arrow = "▼"
 	}
-	if improved {
+	if improved && !regressionOnChange {
 		return "🟢 " + arrow
 	}
 	return "🔴 " + arrow
@@ -695,10 +710,10 @@ func renderCoverage(r report, reportDate string) string {
 	fmt.Fprintf(b, "**Pinned Test262 commit:** `%s`  \n", r.Commit)
 	fmt.Fprintf(b, "**ECMA target:** %s\n\n", r.ECMAVersion)
 	fmt.Fprintln(b, "This report is generated from the complete pinned Test262 suite. **Test262")
-	fmt.Fprintln(b, "coverage** is the percentage of all tests that reached execution (pass, fail, or")
-	fmt.Fprintln(b, "timeout); unsupported tests are excluded. **Overall pass rate** is passes divided")
-	fmt.Fprintln(b, "by every test in the suite, including unsupported tests. These runner metrics do")
-	fmt.Fprintln(b, "not by themselves claim complete ECMAScript conformance.")
+	fmt.Fprintln(b, "execution coverage** is the percentage of tests that reached execution (pass,")
+	fmt.Fprintln(b, "fail, or timeout); unsupported tests are excluded. **Test262 overall pass rate**")
+	fmt.Fprintln(b, "is passes divided by every test in the suite, including unsupported tests. These")
+	fmt.Fprintln(b, "runner metrics do not by themselves claim complete ECMAScript conformance.")
 	fmt.Fprintln(b)
 	fmt.Fprint(b, renderSummary(r))
 	return b.String()
