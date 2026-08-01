@@ -181,21 +181,6 @@ func New(options ...Option) *Runtime {
 		return Boolean(SameValue(x, y)), nil
 	})
 	objectConstructor.f.props["is"] = objectIs
-	objectConstructor.f.props["getOwnPropertyDescriptor"] = nativeValue(func(_ *Runtime, _ Value, args []Value) (Value, error) {
-		if len(args) < 2 || args[0].f != objectConstructor.f || args[1].String() != "is" {
-			return Undefined(), nil
-		}
-		value, ok := property(args[0], args[1].String())
-		if !ok {
-			return Undefined(), nil
-		}
-		descriptor := NewObject()
-		descriptor.o.props["value"] = value
-		descriptor.o.props["writable"] = Boolean(true)
-		descriptor.o.props["enumerable"] = Boolean(false)
-		descriptor.o.props["configurable"] = Boolean(true)
-		return descriptor, nil
-	})
 	r.global.define("Object", objectConstructor, false)
 	globalThis := NewObject()
 	globalThis.o.props["globalThis"] = globalThis

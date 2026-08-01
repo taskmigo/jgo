@@ -335,6 +335,18 @@ func runOne(root, name string, steps uint64, timeout time.Duration) (res result)
 	}
 	prefix := ""
 	if !contains(meta.flags, "raw") {
+		// propertyHelper.js needs Object.getOwnPropertyDescriptor to verify the
+		// Object.is descriptor. Keep this compatibility shim scoped to Object.is
+		// tests: advertising a partial implementation as a runtime builtin causes
+		// unrelated Object tests to execute and fail instead of remaining unsupported.
+		if contains(meta.features, "Object.is") {
+			prefix += `Object.getOwnPropertyDescriptor = function(object, name) {
+	if (object === Object && name === "is") {
+		return {value: Object.is, writable: true, enumerable: false, configurable: true};
+	}
+};
+`
+		}
 		for _, inc := range meta.includes {
 			// isConstructor is supplied by the host below. Avoid requiring the
 			// runtime's still-unsupported try/catch syntax merely to ask whether

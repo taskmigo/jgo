@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"testing"
+	"time"
 )
 
 func TestRenderCoverageIsDeterministic(t *testing.T) {
@@ -372,5 +373,41 @@ func TestInferredFeature(t *testing.T) {
 		if got := inferredFeature(name); got != want {
 			t.Errorf("inferredFeature(%q)=%q, want %q", name, got, want)
 		}
+	}
+}
+
+func TestObjectIsDescriptorShimIsFeatureScoped(t *testing.T) {
+	root := t.TempDir()
+	testDir := filepath.Join(root, "test", "built-ins", "Object")
+	if err := os.MkdirAll(testDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	writeTest := func(name, features, body string) string {
+		t.Helper()
+		path := filepath.Join(testDir, name)
+		source := "/*---\nfeatures: [" + features + "]\n---*/\n" + body
+		if err := os.WriteFile(path, []byte(source), 0644); err != nil {
+			t.Fatal(err)
+		}
+		rel, err := filepath.Rel(root, path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return filepath.ToSlash(rel)
+	}
+
+	objectIsTest := writeTest("is-descriptor.js", "Object.is", `
+let descriptor = Object.getOwnPropertyDescriptor(Object, "is");
+assert.sameValue(descriptor.value, Object.is);
+assert.sameValue(descriptor.writable, true);
+assert.sameValue(descriptor.enumerable, false);
+assert.sameValue(descriptor.configurable, true);`)
+	if got := runOne(root, objectIsTest, 100000, 2*time.Second); got.Status != "pass" {
+		t.Fatalf("Object.is descriptor test: status=%s reason=%s", got.Status, got.Reason)
+	}
+
+	unrelatedTest := writeTest("unrelated-descriptor.js", "", `Object.getOwnPropertyDescriptor(Object, "hasOwn");`)
+	if got := runOne(root, unrelatedTest, 100000, 2*time.Second); got.Status != "unsupported" {
+		t.Fatalf("unrelated descriptor test: status=%s reason=%s", got.Status, got.Reason)
 	}
 }

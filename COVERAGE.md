@@ -13,13 +13,13 @@ runner metrics do not by themselves claim complete ECMAScript conformance.
 ## Test262 b363f29d3c43c626dc852744ad64a0b48a003693 (full)
 
 **ECMA target:** ECMAScript 2025 (ES16), plus later features present in the pinned Test262 commit<br>
-**Test262 execution coverage:** 12.45% (6704/53869 tests reached execution)<br>
-**Test262 overall pass rate:** 9.58% (5158/53869)<br>
-**Pass rate among executed tests:** 76.94% (5158/6704)
+**Test262 execution coverage:** 12.24% (6591/53869 tests reached execution)<br>
+**Test262 overall pass rate:** 9.55% (5147/53869)<br>
+**Pass rate among executed tests:** 78.09% (5147/6591)
 
 | pass | fail | skip | unsupported | timeout | total |
 |---:|---:|---:|---:|---:|---:|
-| 5158 | 1544 | 0 | 47165 | 2 | 53869 |
+| 5147 | 1442 | 0 | 47278 | 2 | 53869 |
 
 ### By feature
 
@@ -101,17 +101,17 @@ runner metrics do not by themselves claim complete ECMAScript conformance.
 | String.prototype.toWellFormed | 0 | 0 | 8 | 0 | 8 |
 | String.prototype.trimEnd | 0 | 0 | 24 | 0 | 24 |
 | String.prototype.trimStart | 0 | 0 | 23 | 0 | 23 |
-| Symbol | 119 | 18 | 1357 | 0 | 1494 |
+| Symbol | 118 | 18 | 1358 | 0 | 1494 |
 | Symbol.asyncIterator | 0 | 0 | 538 | 0 | 538 |
 | Symbol.hasInstance | 2 | 0 | 15 | 0 | 17 |
 | Symbol.isConcatSpreadable | 1 | 0 | 33 | 0 | 34 |
 | Symbol.iterator | 2 | 0 | 1865 | 0 | 1867 |
 | Symbol.match | 1 | 0 | 87 | 0 | 88 |
 | Symbol.matchAll | 1 | 0 | 62 | 0 | 63 |
-| Symbol.prototype.description | 1 | 2 | 5 | 0 | 8 |
+| Symbol.prototype.description | 0 | 2 | 6 | 0 | 8 |
 | Symbol.replace | 1 | 1 | 96 | 0 | 98 |
 | Symbol.search | 2 | 0 | 35 | 0 | 37 |
-| Symbol.species | 8 | 1 | 275 | 0 | 284 |
+| Symbol.species | 8 | 0 | 276 | 0 | 284 |
 | Symbol.split | 1 | 0 | 57 | 0 | 58 |
 | Symbol.toPrimitive | 10 | 6 | 217 | 0 | 233 |
 | Symbol.toStringTag | 0 | 0 | 131 | 0 | 131 |
@@ -127,7 +127,7 @@ runner metrics do not by themselves claim complete ECMAScript conformance.
 | WeakRef | 0 | 3 | 34 | 0 | 37 |
 | WeakSet | 7 | 0 | 27 | 0 | 34 |
 | __getter__ | 0 | 0 | 27 | 0 | 27 |
-| __proto__ | 0 | 2 | 18 | 0 | 20 |
+| __proto__ | 0 | 0 | 20 | 0 | 20 |
 | __setter__ | 0 | 0 | 27 | 0 | 27 |
 | align-detached-buffer-semantics-with-web-reality | 0 | 0 | 158 | 0 | 158 |
 | arbitrary-module-namespace-names | 0 | 0 | 16 | 0 | 16 |
@@ -213,7 +213,7 @@ runner metrics do not by themselves claim complete ECMAScript conformance.
 | path:built-ins/NaN | 1 | 0 | 5 | 0 | 6 |
 | path:built-ins/NativeErrors | 3 | 4 | 73 | 0 | 80 |
 | path:built-ins/Number | 2 | 1 | 277 | 0 | 280 |
-| path:built-ins/Object | 153 | 147 | 2777 | 0 | 3077 |
+| path:built-ins/Object | 146 | 52 | 2879 | 0 | 3077 |
 | path:built-ins/Promise | 12 | 1 | 272 | 0 | 285 |
 | path:built-ins/Proxy | 0 | 0 | 2 | 0 | 2 |
 | path:built-ins/RegExp | 13 | 0 | 568 | 0 | 581 |
@@ -373,7 +373,7 @@ runner metrics do not by themselves claim complete ECMAScript conformance.
 | path:language/directive-prologue | 11 | 11 | 40 | 0 | 62 |
 | path:language/eval-code | 8 | 0 | 200 | 0 | 208 |
 | path:language/export | 0 | 0 | 3 | 0 | 3 |
-| path:language/expressions | 589 | 135 | 1938 | 0 | 2662 |
+| path:language/expressions | 589 | 134 | 1939 | 0 | 2662 |
 | path:language/function-code | 55 | 1 | 161 | 0 | 217 |
 | path:language/future-reserved-words | 33 | 15 | 7 | 0 | 55 |
 | path:language/global-code | 1 | 4 | 26 | 0 | 31 |
@@ -389,11 +389,11 @@ runner metrics do not by themselves claim complete ECMAScript conformance.
 | path:language/rest-parameters | 1 | 0 | 10 | 0 | 11 |
 | path:language/source-text | 0 | 0 | 1 | 0 | 1 |
 | path:language/statementList | 8 | 0 | 34 | 0 | 42 |
-| path:language/statements | 309 | 182 | 946 | 0 | 1437 |
+| path:language/statements | 307 | 182 | 948 | 0 | 1437 |
 | path:language/types | 42 | 3 | 64 | 0 | 109 |
 | path:language/white-space | 17 | 0 | 48 | 0 | 65 |
 | path:staging/built-ins | 0 | 0 | 1 | 0 | 1 |
-| path:staging/sm | 31 | 14 | 1145 | 2 | 1192 |
+| path:staging/sm | 31 | 11 | 1148 | 2 | 1192 |
 | path:staging/source-phase-imports | 0 | 2 | 0 | 0 | 2 |
 | path:staging/top-level-await | 0 | 3 | 0 | 0 | 3 |
 | promise-try | 2 | 0 | 10 | 0 | 12 |

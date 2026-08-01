@@ -610,11 +610,11 @@
     },
     "Symbol": {
       "fail": 18,
-      "pass": 119,
+      "pass": 118,
       "skip": 0,
       "timeout": 0,
       "total": 1494,
-      "unsupported": 1357
+      "unsupported": 1358
     },
     "Symbol.asyncIterator": {
       "fail": 0,
@@ -666,11 +666,11 @@
     },
     "Symbol.prototype.description": {
       "fail": 2,
-      "pass": 1,
+      "pass": 0,
       "skip": 0,
       "timeout": 0,
       "total": 8,
-      "unsupported": 5
+      "unsupported": 6
     },
     "Symbol.replace": {
       "fail": 1,
@@ -689,12 +689,12 @@
       "unsupported": 35
     },
     "Symbol.species": {
-      "fail": 1,
+      "fail": 0,
       "pass": 8,
       "skip": 0,
       "timeout": 0,
       "total": 284,
-      "unsupported": 275
+      "unsupported": 276
     },
     "Symbol.split": {
       "fail": 0,
@@ -817,12 +817,12 @@
       "unsupported": 27
     },
     "__proto__": {
-      "fail": 2,
+      "fail": 0,
       "pass": 0,
       "skip": 0,
       "timeout": 0,
       "total": 20,
-      "unsupported": 18
+      "unsupported": 20
     },
     "__setter__": {
       "fail": 0,
@@ -1505,12 +1505,12 @@
       "unsupported": 277
     },
     "path:built-ins/Object": {
-      "fail": 147,
-      "pass": 153,
+      "fail": 52,
+      "pass": 146,
       "skip": 0,
       "timeout": 0,
       "total": 3077,
-      "unsupported": 2777
+      "unsupported": 2879
     },
     "path:built-ins/Promise": {
       "fail": 1,
@@ -2785,12 +2785,12 @@
       "unsupported": 3
     },
     "path:language/expressions": {
-      "fail": 135,
+      "fail": 134,
       "pass": 589,
       "skip": 0,
       "timeout": 0,
       "total": 2662,
-      "unsupported": 1938
+      "unsupported": 1939
     },
     "path:language/function-code": {
       "fail": 1,
@@ -2914,11 +2914,11 @@
     },
     "path:language/statements": {
       "fail": 182,
-      "pass": 309,
+      "pass": 307,
       "skip": 0,
       "timeout": 0,
       "total": 1437,
-      "unsupported": 946
+      "unsupported": 948
     },
     "path:language/types": {
       "fail": 3,
@@ -2945,12 +2945,12 @@
       "unsupported": 1
     },
     "path:staging/sm": {
-      "fail": 14,
+      "fail": 11,
       "pass": 31,
       "skip": 0,
       "timeout": 2,
       "total": 1192,
-      "unsupported": 1145
+      "unsupported": 1148
     },
     "path:staging/source-phase-imports": {
       "fail": 2,
@@ -3195,18 +3195,18 @@
   },
   "commit": "b363f29d3c43c626dc852744ad64a0b48a003693",
   "counts": {
-    "fail": 1544,
-    "pass": 5158,
+    "fail": 1442,
+    "pass": 5147,
     "skip": 0,
     "timeout": 2,
     "total": 53869,
-    "unsupported": 47165
+    "unsupported": 47278
   },
   "coverage": {
-    "coveragePercent": 12.445005476247935,
-    "coveredPassPercent": 76.93914081145584,
-    "coveredTests": 6704,
-    "overallPassPercent": 9.57508028736379
+    "coveragePercent": 12.235237335016429,
+    "coveredPassPercent": 78.09133667121833,
+    "coveredTests": 6591,
+    "overallPassPercent": 9.554660379810281
   },
   "ecmaVersion": "ECMAScript 2025 (ES16), plus later features present in the pinned Test262 commit",
   "mode": "full"
